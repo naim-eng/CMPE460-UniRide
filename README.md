@@ -6,7 +6,7 @@ The Carpooling App is designed to connect drivers and passengers traveling in th
 
 Commit Summary 
 
-Naim Ashour - Created GitHub repository link - Updated README with project overview and structure - Uploaded and added diagrams (Use Case, Behavioral, Class) | Contributed to repository setup, improved documentation layout, and added key visual diagrams for project clarity. 
+Naim Ashour - Created GitHub repository link - Updated README with project overview - Uploaded and added diagrams (Use Case, Behavioral, Class) | Contributed to repository setup, improved documentation layout, and added key visual diagrams for project clarity. 
 
 
 
