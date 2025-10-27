@@ -1,0 +1,20 @@
+1)Enable user Registration through the app :
+As a new user, I want to be able to create my account via the UniRide app so that I can start using the app’s services.
+The user has to be able to enter their email or phone number and password to complete the registration process.
+
+2)Create driver posting ride page:
+As a driver, I need to be able to post a ride that I am going to take to be able to have people see it.
+The driver needs to set the time that this ride will happen
+
+R3)equest and Rid to campus:
+As a Uni student who doesn't 
+drive, I want to search for available carpool rides to AUBH, so that I can easily find a ride from other students going to the same destination without needing my own car
+The rider can request to join a specific ride
+
+4)Enable Ride Creation and Management for Drivers:
+As a registered Driver, I want to create and manage ride offers within the UniRide App so that I can easily schedule trips, share my route, and accept passengers conveniently.
+The driver must be able to accept or reject passenger requests within the app.
+
+5)Enable in-app Ride Chat between Driver and Passengers:
+As a registered User, I want to be able to chat with the driver or passenger directly in the UniRide app so that we can communicate and coordinate without providing personal numbers.
+A notification must appear when a message is received.
