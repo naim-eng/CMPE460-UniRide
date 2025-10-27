@@ -8,10 +8,13 @@ Commit Summary
 
 Naim Ashour - Created GitHub repository link - Updated README with project overview - Uploaded diagrams (Use Case, Behavioral, Class)
 
-Sultan Albinali - Uploaded the Functional and Non Functional Requirements document.
+Sultan Albinali - Uploaded the Functional and Non-Functional Requirements document.
 
 Hattan Abduldaim - Uploaded the User Stories document.
 
+Renad Ibrahim- Uploaded the initial wireframes 
+
+Talal AlHamer - Uploaded the sequence diagram 
 
 
 
