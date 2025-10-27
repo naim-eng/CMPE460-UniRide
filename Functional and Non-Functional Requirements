@@ -1,0 +1,57 @@
+Functional Requirements 
+
+User Authentication
+The app must allow the user to register with their email and password.
+The app must verify if there is an existing account belonging to the user.
+
+Ride Posting
+The app must allow users the option to switch to the driver page
+The app must allow the driver to create a trip
+The app must allow the driver to enter trip details such as area, destination, date, time, and available seats
+
+Seat Booking
+The app must allow users the option to switch to the rider page.
+The app must present available rides to the riders.
+The app must display all relevant ride details to a rider when booking.
+
+Driver-Rider Matching
+The app must recommend available rides to riders based on proximity, time, and destination
+The app must still allow users to view rides other than the recommended rides
+
+Rating System
+The app must allow riders to rate drivers after a ride
+The app must allow drivers to rate riders after a ride
+The app must display the average driver and rider ratings on their postings
+
+In-App Chat
+The app must allow the driver and riders to chat within the app once a booking is confirmed.
+The chat should close automatically when the ride is completed.
+Notifications should alert users to new messages.
+
+Non-Functional Requirements 
+
+ Usability
+The app must be simple and easy for students to use. 
+The app must allow new users to register an account in a maximum of 3 minutes.
+The app must have a simple user interface with minimal text and clear icons.
+
+ Performance
+The app must run smoothly without delays or crashes.
+The app must respond quickly to user actions.
+The app must deliver notifications to the user about booking/cancellation within a span of 5 seconds.
+
+ Security 
+The app must encrypt users' data and protect it 
+The app must only allow authorized users to access personal information.
+The app must secure the user's password using some type of hashing method. 
+
+ Availability 
+The app must be accessible whenever students need it.
+The app must store users' data in secure backups to avoid the chance of data loss during downtime.
+Users should always be able to access features like ride searching and booking.
+
+ Maintainability
+The app must have clean, organized code so developers can easily update or fix it.
+The app must use consistent naming conventions throughout.
+The app must have a design that allows data expansion.
+
