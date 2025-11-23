@@ -1,0 +1,23 @@
+Ethical Design Statement
+1. Privacy (Location and Data Handling)
+The information handled by UniRide is sensitive: university email addresses of students, points of ride pickup, chat messages, and booking activities. The design focuses on data minimization, controlled access to data, and clear boundaries among components.
+Minimum data collection: It stores only the essential data: email, details of rides, ratings, etc.. No Real-time GPS tracking is collected; pickup points are added manually.
+Communication: In-app chat messages are only visible to the two parties involved
+User control: Riders can cancel bookings and remove themselves from rides anytime, reducing irrelevant or unnecessary sharing of personal information.
+
+2. Fairness (Ride Matching Algorithm)
+Although recommended rides are shown at the top, all rides are shown to any given rider to give the rider full control over their choice.
+No discrimination: Riders are not shown potential drivers based on age, race, gender, etc.
+Objective selection criteria: Drivers are shown to riders only based on the relevant criteria, such as location, distance, time, etc.
+
+3. Safety (Emergency features)
+Safety is an ethical requirement of primary importance because the application entails physical transportation.
+Student verification: Only verified students signing up with a student email will be allowed to use the service.
+Clear ride details: Before a rider books a ride, they are shown all the relevant ride details.
+In-app communication: Allows drivers and riders to easily communicate without needing to share personal information.
+Live updates: Let riders and drivers know of any changes to a past booking as soon as they happen.
+
+4. Ethical Trade-Off (Convenience vs. Privacy)
+A major design decision is how to balance privacy with convenience. More convenience typically means less privacy, and more privacy typically means less convenience. Finding a good balance between these two extremes is key.
+Increased privacy typically restricts data collection and negatively impacts matching precision or automation.
+Instead of tracking user location, the system uses pre-determined pickup points. This keeps user privacy high, but does slightly reduce the capability of the system in offering the best possible recommendations. This trade-off strengthens user trust and ensures adherence to ethical expectations in student settings.
