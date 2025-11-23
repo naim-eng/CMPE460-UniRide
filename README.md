@@ -20,5 +20,5 @@ Talal AlHamer - Uploaded the sequence diagram
 Sprint 2
 
 
-Naim Ashour – Created and uploaded the updated UML class diagram. Completed  the architectural analysis section. Included privacy recommendation (no phone numbers shown, chat-only communication)
+Naim Ashour – Created and uploaded the updated UML class diagram. Completed  the architectural analysis section. Added safety requirements to the UML/design: student-email verification, clear ride details before booking, in-app chat instead of phone numbers, and live ride update notifications.
 
