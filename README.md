@@ -17,4 +17,6 @@ Renad Ibrahim- Uploaded the initial wireframes
 Talal AlHamer - Uploaded the sequence diagram 
 
 Sprint 2
+
+
 Naim Ashour – Created and uploaded the updated UML class diagram. Completed  the architectural analysis section.
