@@ -6,6 +6,7 @@ The Carpooling App is designed to connect drivers and passengers traveling in th
 
 Commit Summary 
 Sprint 1
+
 Naim Ashour - Created GitHub repository link - Updated README with project overview - Uploaded diagrams (Use Case, Behavioral, Class)
 
 Sultan Albinali - Uploaded the Functional and Non-Functional Requirements document.
@@ -19,4 +20,5 @@ Talal AlHamer - Uploaded the sequence diagram
 Sprint 2
 
 
-Naim Ashour – Created and uploaded the updated UML class diagram. Completed  the architectural analysis section.
+Naim Ashour – Created and uploaded the updated UML class diagram. Completed  the architectural analysis section. Included privacy recommendation (no phone numbers shown, chat-only communication)
+
