@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'home_screen.dart';
-import 'register_screen.dart';
-
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
 
   bool _loading = false;
 
@@ -24,18 +24,25 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _login() async {
+  Future<void> _register() async {
+    String name = _nameController.text.trim();
     String email = _emailController.text.trim();
+    String phone = _phoneController.text.trim();
     String password = _passwordController.text.trim();
+    String confirm = _confirmController.text.trim();
 
     // VALIDATION
-    if (email.isEmpty || password.isEmpty) {
+    if (name.isEmpty ||
+        email.isEmpty ||
+        phone.isEmpty ||
+        password.isEmpty ||
+        confirm.isEmpty) {
       _showError("Please fill in all fields.");
       return;
     }
 
     if (!email.contains("@") || !email.contains(".")) {
-      _showError("Please enter a valid email address.");
+      _showError("Please enter a valid email.");
       return;
     }
 
@@ -44,40 +51,40 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    if (password != confirm) {
+      _showError("Passwords do not match.");
+      return;
+    }
+
     setState(() => _loading = true);
 
     try {
-      // Firebase login
+      // Create Firebase User
       UserCredential cred = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: password);
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-      // Fetch user profile
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+      // Save profile in Firestore
+      await FirebaseFirestore.instance
           .collection("users")
           .doc(cred.user!.uid)
-          .get();
+          .set({
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "uid": cred.user!.uid,
+            "createdAt": Timestamp.now(),
+          });
 
-      if (!userDoc.exists) {
-        _showError("User profile missing. Contact support.");
-        return;
-      }
-
-      // Go to home page
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomeScreen()),
-      );
+      Navigator.pop(context); // go back to Login
     } on FirebaseAuthException catch (e) {
-      if (e.code == "invalid-email") {
-        _showError("The email format is invalid.");
-      } else if (e.code == "user-not-found") {
-        _showError("No account found with this email.");
-      } else if (e.code == "wrong-password") {
-        _showError("Incorrect password.");
-      } else if (e.code == "too-many-requests") {
-        _showError("Too many login attempts. Try again later.");
+      if (e.code == "email-already-in-use") {
+        _showError("An account already exists for this email.");
+      } else if (e.code == "invalid-email") {
+        _showError("Invalid email format.");
+      } else if (e.code == "weak-password") {
+        _showError("Password is too weak.");
       } else {
-        _showError(e.message ?? "Login failed. Try again.");
+        _showError(e.message ?? "Registration failed. Try again.");
       }
     } catch (_) {
       _showError("Something went wrong. Try again.");
@@ -103,41 +110,26 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Column(
                 children: [
-                  const SizedBox(height: 30),
-
-                  // LOGO
-                  ClipOval(
-                    child: Image.asset(
-                      'assets/uniride_logo.jpg',
-                      height: 120,
-                      width: 120,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 40),
 
                   const Text(
-                    "UniRide",
+                    "Create an Account",
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 36,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
                     ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  const Text(
-                    "Connecting students for cheaper and safer rides",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
 
                   const SizedBox(height: 40),
 
+                  _input("Full Name", Icons.person, _nameController),
+                  const SizedBox(height: 16),
+
                   _input("Email", Icons.email_outlined, _emailController),
+                  const SizedBox(height: 16),
+
+                  _input("Phone Number", Icons.phone, _phoneController),
                   const SizedBox(height: 16),
 
                   _input(
@@ -146,12 +138,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     _passwordController,
                     obscure: true,
                   ),
+                  const SizedBox(height: 16),
 
-                  const SizedBox(height: 25),
+                  _input(
+                    "Confirm Password",
+                    Icons.lock_outline,
+                    _confirmController,
+                    obscure: true,
+                  ),
 
-                  // LOGIN BUTTON (YELLOW)
+                  const SizedBox(height: 30),
+
+                  // REGISTER BUTTON (YELLOW)
                   GestureDetector(
-                    onTap: _loading ? null : _login,
+                    onTap: _loading ? null : _register,
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -165,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: Colors.black,
                               )
                             : const Text(
-                                "Login",
+                                "Register →",
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: Colors.black87,
@@ -176,35 +176,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 25),
 
-                  // SIGN UP (LIGHT BLUE BUTTON)
                   GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RegisterScreen(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.20),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white70),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "Create Account",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                    onTap: () => Navigator.pop(context),
+                    child: const Text(
+                      "Already have an account? Login",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ),
