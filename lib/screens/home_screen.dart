@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'offer_ride_screen.dart';
+import 'find_ride_screen.dart'; // <-- ADD THIS
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -11,10 +12,7 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           "UniRide",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
         ),
         backgroundColor: Colors.teal,
         centerTitle: true,
@@ -25,7 +23,6 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             const SizedBox(height: 20),
 
             const Text(
@@ -46,9 +43,7 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const OfferRideScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const OfferRideScreen()),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -57,10 +52,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 child: const Text(
                   "Offer a Ride",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -71,7 +63,9 @@ class HomeScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushNamed(context, '/find-ride');
+                }, // <-- FIXED
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   side: const BorderSide(color: Colors.teal),
