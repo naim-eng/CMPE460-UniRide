@@ -33,9 +33,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Offer a Ride"),
-      ),
+      appBar: AppBar(title: const Text("Offer a Ride")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -100,9 +98,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Ride created (UI only)"),
-                        ),
+                        const SnackBar(content: Text("Ride created (UI only)")),
                       );
                     }
                   },
