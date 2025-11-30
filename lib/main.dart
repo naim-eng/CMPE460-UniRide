@@ -7,6 +7,11 @@ import 'screens/login_screen.dart';
 // flutter emulators --launch apple_ios_simulator
 // flutter run -d "iPhone 16e"
 
+// commit: 
+// git status
+// git add .
+// git commit -m "your message"
+// git push
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
