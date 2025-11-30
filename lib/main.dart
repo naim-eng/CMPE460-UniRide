@@ -3,6 +3,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 
+// to test ios simulator: 
+// flutter emulators --launch apple_ios_simulator
+// flutter run -d "iPhone 16e"
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
