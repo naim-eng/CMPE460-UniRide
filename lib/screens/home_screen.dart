@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'offer_ride_screen.dart';
-<<<<<<< HEAD
-class HomeScreen extends StatefulWidget {
-=======
-import 'find_ride_screen.dart'; // <-- ADD THIS
+import 'find_ride_screen.dart';
 
-class HomeScreen extends StatelessWidget {
->>>>>>> 2454645835ba61bd7f372ce79d74eb864d84a167
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
@@ -27,25 +23,19 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         title: const Text(
           "UniRide",
-<<<<<<< HEAD
           style: TextStyle(
             color: Colors.white,
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
-=======
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
->>>>>>> 2454645835ba61bd7f372ce79d74eb864d84a167
         ),
         centerTitle: true,
         backgroundColor: Colors.teal,
       ),
 
-<<<<<<< HEAD
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -55,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 10),
 
-              // Google Map
+              // ---------- MAP ----------
               SizedBox(
                 height: 300,
                 width: double.infinity,
@@ -70,77 +60,30 @@ class _HomeScreenState extends State<HomeScreen> {
                     myLocationEnabled: false,
                     zoomControlsEnabled: false,
                   ),
-=======
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-
-            const Text(
-              "Where do you want to go?",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Offer Ride Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const OfferRideScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                ),
-                child: const Text(
-                  "Offer a Ride",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
->>>>>>> 2454645835ba61bd7f372ce79d74eb864d84a167
                 ),
               ),
 
               const SizedBox(height: 30),
 
-<<<<<<< HEAD
               const Text(
                 "Where do you want to go?",
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
-=======
-            // Find Ride Button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/find-ride');
-                }, // <-- FIXED
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  side: const BorderSide(color: Colors.teal),
->>>>>>> 2454645835ba61bd7f372ce79d74eb864d84a167
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // Offer a Ride button
+              // ---------- OFFER RIDE ----------
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // TODO: Navigate later
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const OfferRideScreen()),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
@@ -162,11 +105,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 12),
 
-              // Find a Ride button
+              // ---------- FIND RIDE ----------
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FindRideScreen()),
+                    );
+                  },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     side: const BorderSide(color: Colors.teal, width: 2),
@@ -192,3 +140,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
