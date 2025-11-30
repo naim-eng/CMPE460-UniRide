@@ -12,9 +12,9 @@ dependencies:
     sdk: flutter
 
   # Firebase packages (compatible versions)
-  firebase_core: ^2.25.4
-  firebase_auth: ^4.16.1
-  cloud_firestore: ^4.17.5
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
 
   cupertino_icons: ^1.0.8
 

@@ -1,0 +1,89 @@
+platform :macos, '10.15'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'ephemeral', 'Flutter-Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure \"flutter pub get\" is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Flutter-Generated.xcconfig, then run \"flutter pub get\""
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_macos_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+
+  flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    # Keep Flutter's default macOS build settings
+    flutter_additional_macos_build_settings(target)
+
+    # 1) Strip the bad -GCC_WARN_INHIBIT_ALL_WARNINGS flag everywhere
+    target.build_configurations.each do |config|
+      config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.15'
+
+      %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS COMPILER_FLAGS].each do |key|
+        value = config.build_settings[key]
+        if value.is_a?(String) && value.include?('-GCC_WARN_INHIBIT_ALL_WARNINGS')
+          config.build_settings[key] = value.gsub('-GCC_WARN_INHIBIT_ALL_WARNINGS', '')
+        end
+      end
+    end
+
+    # Also remove it from per-file compiler flags
+    target.build_phases.each do |phase|
+      next unless phase.respond_to?(:files)
+      phase.files.each do |file|
+        settings = file.settings
+        next unless settings && settings['COMPILER_FLAGS'].is_a?(String)
+        if settings['COMPILER_FLAGS'].include?('-GCC_WARN_INHIBIT_ALL_WARNINGS')
+          settings['COMPILER_FLAGS'] =
+            settings['COMPILER_FLAGS'].gsub('-GCC_WARN_INHIBIT_ALL_WARNINGS', '')
+        end
+      end
+    end
+
+    # 2) Patch basic_seq.h for new clang in both gRPC-Core and gRPC-C++
+    if target.name == 'gRPC-Core' || target.name == 'gRPC-C++'
+      grpc_file_path = if target.name == 'gRPC-Core'
+                         'Pods/gRPC-Core/src/core/lib/promise/detail/basic_seq.h'
+                       else
+                         'Pods/gRPC-C++/src/core/lib/promise/detail/basic_seq.h'
+                       end
+
+      if File.exist?(grpc_file_path)
+        file_content = File.read(grpc_file_path)
+        if file_content.include?('Traits::template CallSeqFactory(')
+          puts "Patching #{grpc_file_path} for new clang..."
+          file_content.gsub!(
+            'Traits::template CallSeqFactory(',
+            'Traits::template CallSeqFactory<>('
+          )
+          File.open(grpc_file_path, 'w') { |f| f.write(file_content) }
+        end
+      end
+    end
+  end
+end
