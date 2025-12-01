@@ -4,8 +4,8 @@
         android:name="${applicationName}"
        android:icon="@mipmap/ic_launcher">
        <meta-data
-    android:name="io.flutter.embedding.android.EnableImpeller"
-    android:value="false" />
+    android:name="com.google.android.geo.API_KEY"
+    android:value="AIzaSyD21V4uM60CBfFtl0RqeIQ0R4nYjKQYt_w" />
 
         <activity
             android:name=".MainActivity"
