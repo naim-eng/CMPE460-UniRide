@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 import 'offer_ride_screen.dart';
 import 'find_ride_screen.dart';
 
@@ -23,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
       appBar: AppBar(
         title: const Text(
           "UniRide",
@@ -42,10 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-
               const SizedBox(height: 10),
 
-              // ---------- MAP ----------
+              // Google Map
               SizedBox(
                 height: 300,
                 width: double.infinity,
@@ -75,14 +76,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 20),
 
-              // ---------- OFFER RIDE ----------
+              // Offer a Ride button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const OfferRideScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const OfferRideScreen(),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -105,14 +108,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 12),
 
-              // ---------- FIND RIDE ----------
+              // Find a Ride button
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const FindRideScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const FindRideScreen(),
+                      ),
                     );
                   },
                   style: OutlinedButton.styleFrom(
@@ -132,7 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-
             ],
           ),
         ),
@@ -140,4 +144,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-

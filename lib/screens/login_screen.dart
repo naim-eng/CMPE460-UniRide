@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'test_screen.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 
@@ -19,14 +20,18 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
 
   void _showError(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 
   Future<void> _login() async {
-    String email = _emailController.text.trim();
-    String password = _passwordController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
     // VALIDATION
     if (email.isEmpty || password.isEmpty) {
@@ -48,11 +53,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // Firebase login
-      UserCredential cred = await FirebaseAuth.instance
+      final cred = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
 
       // Fetch user profile
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+      final userDoc = await FirebaseFirestore.instance
           .collection("users")
           .doc(cred.user!.uid)
           .get();
@@ -62,11 +67,24 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      // DEBUG: log that login + fetch succeeded
+      // ignore: avoid_print
+      print("LOGIN OK for ${cred.user!.uid}");
+
       // Go to home page
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => HomeScreen()),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
+
+      // Temporarily go to a simple test screen
+      // if (!mounted) return;
+      // Navigator.pushReplacement(
+      //   context,
+      //   MaterialPageRoute(builder: (_) => const TestScreen()),
+      // );
+
     } on FirebaseAuthException catch (e) {
       if (e.code == "invalid-email") {
         _showError("The email format is invalid.");
@@ -79,11 +97,24 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         _showError(e.message ?? "Login failed. Try again.");
       }
-    } catch (_) {
+    } catch (e, st) {
+      // Catch any unexpected Dart-side errors and log them
+      // ignore: avoid_print
+      print("UNEXPECTED LOGIN ERROR: $e");
+      print(st);
       _showError("Something went wrong. Try again.");
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
+  }
 
-    setState(() => _loading = false);
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -151,7 +182,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // LOGIN BUTTON (YELLOW)
                   GestureDetector(
-                    onTap: _loading ? null : _login,
+                    onTap: _loading
+                        ? null
+                        : () async {
+                            try {
+                              await _login();
+                            } catch (e, st) {
+                              // This should almost never trigger, but if it does
+                              // we see it in the console instead of a silent crash.
+                              // ignore: avoid_print
+                              print("FATAL LOGIN TAP ERROR: $e");
+                              print(st);
+                              _showError("Unexpected error during login.");
+                            }
+                          },
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 16),
