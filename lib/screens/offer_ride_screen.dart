@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'ride_published_screen.dart';
 
@@ -18,6 +19,9 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
   final _seatsController = TextEditingController();
   final _priceController = TextEditingController();
 
+  DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = TimeOfDay.now();
+
   @override
   void dispose() {
     _fromController.dispose();
@@ -34,8 +38,192 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
   static const Color kUniRideYellow = Color(0xFFFFC727);
 
-  // Screen background: light teal (full screen)
   static const Color kScreenTeal = Color(0xFFE0F9FB);
+
+  // --------------------- DATE PICKER (BLUE) ---------------------
+  void _openCalendar() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: 400,
+          child: Column(
+            children: [
+              const Text(
+                "Select a Date",
+                style: TextStyle(
+                  color: kUniRideTeal2,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              Expanded(
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: kUniRideTeal2, // selected date color
+                      onPrimary: Colors.white,
+                      onSurface: Colors.black87,
+                    ),
+                  ),
+                  child: CalendarDatePicker(
+                    initialDate: _selectedDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    onDateChanged: (date) {
+                      setState(() {
+                        _selectedDate = date;
+                        _dateController.text =
+                            "${date.day}/${date.month}/${date.year}";
+                      });
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // --------------------- TIME PICKER (AM/PM) ---------------------
+  void _openTimePicker() {
+    final hours = List.generate(12, (i) => i + 1);
+    final minutes = List.generate(60, (i) => i.toString().padLeft(2, "0"));
+    final ampm = ["AM", "PM"];
+
+    int selectedHour = _selectedTime.hourOfPeriod;
+    int selectedMinute = _selectedTime.minute;
+    int selectedAmPm = _selectedTime.period == DayPeriod.am ? 0 : 1;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: 330,
+          child: Column(
+            children: [
+              const Text(
+                "Select Time",
+                style: TextStyle(
+                  color: kUniRideTeal2,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Hours
+                    Expanded(
+                      child: CupertinoPicker(
+                        itemExtent: 32,
+                        scrollController: FixedExtentScrollController(
+                          initialItem: selectedHour,
+                        ),
+                        onSelectedItemChanged: (i) {
+                          selectedHour = i;
+                        },
+                        children: hours
+                            .map((h) => Center(child: Text(h.toString())))
+                            .toList(),
+                      ),
+                    ),
+
+                    // Minutes
+                    Expanded(
+                      child: CupertinoPicker(
+                        itemExtent: 32,
+                        scrollController: FixedExtentScrollController(
+                          initialItem: selectedMinute,
+                        ),
+                        onSelectedItemChanged: (i) {
+                          selectedMinute = i;
+                        },
+                        children: minutes
+                            .map((m) => Center(child: Text(m)))
+                            .toList(),
+                      ),
+                    ),
+
+                    // AM/PM
+                    Expanded(
+                      child: CupertinoPicker(
+                        itemExtent: 32,
+                        scrollController: FixedExtentScrollController(
+                          initialItem: selectedAmPm,
+                        ),
+                        onSelectedItemChanged: (i) {
+                          selectedAmPm = i;
+                        },
+                        children: ampm
+                            .map((p) => Center(child: Text(p)))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Confirm Button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kUniRideTeal2,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  int hour = hours[selectedHour] % 12;
+                  if (selectedAmPm == 1) hour += 12;
+
+                  setState(() {
+                    _selectedTime = TimeOfDay(
+                      hour: hour,
+                      minute: selectedMinute,
+                    );
+
+                    _timeController.text =
+                        "${hours[selectedHour]}:${minutes[selectedMinute]} ${ampm[selectedAmPm]}";
+                  });
+
+                  Navigator.pop(context);
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text(
+                    "Confirm",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,20 +245,19 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
           style: TextStyle(color: kUniRideTeal2, fontWeight: FontWeight.bold),
         ),
       ),
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 4),
               const Text(
                 "Share your ride with other UniRide students.",
                 style: TextStyle(color: Colors.black54, fontSize: 14),
               ),
               const SizedBox(height: 20),
 
-              // -------- FORM CARD (white) ----------
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
@@ -98,6 +285,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                         label: "To",
                         icon: Icons.flag_outlined,
                       ),
+
                       Row(
                         children: [
                           Expanded(
@@ -105,6 +293,8 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                               controller: _dateController,
                               label: "Date",
                               icon: Icons.calendar_today,
+                              readOnly: true,
+                              onTap: _openCalendar,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -113,10 +303,13 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                               controller: _timeController,
                               label: "Time",
                               icon: Icons.access_time,
+                              readOnly: true,
+                              onTap: _openTimePicker,
                             ),
                           ),
                         ],
                       ),
+
                       Row(
                         children: [
                           Expanded(
@@ -138,9 +331,9 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                           ),
                         ],
                       ),
+
                       const SizedBox(height: 20),
 
-                      // -------- BUTTON ----------
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -162,12 +355,10 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: kUniRideYellow,
-                            elevation: 3,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            shadowColor: Colors.black26,
                           ),
                           child: const Text(
                             "Publish Ride",
@@ -192,32 +383,34 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
-  // ------------- CUSTOM FIELD WITH BORDER -------------
+  // ---------- CUSTOM FIELD ----------
   Widget _buildField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
-        validator: (value) {
-          if (value == null || value.isEmpty) return "Required";
-          return null;
-        },
+        readOnly: readOnly,
+        onTap: onTap,
+        validator: (value) =>
+            value == null || value.isEmpty ? "Required" : null,
         decoration: InputDecoration(
           filled: true,
           fillColor: Colors.white,
+          prefixIcon: Icon(icon, color: kUniRideTeal2),
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.black54),
           contentPadding: const EdgeInsets.symmetric(
             vertical: 14,
             horizontal: 12,
           ),
-          prefixIcon: Icon(icon, color: kUniRideTeal2),
-          labelText: label,
-          labelStyle: const TextStyle(color: Colors.black54, fontSize: 15),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide(
@@ -228,14 +421,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: kUniRideTeal2, width: 1.8),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
           ),
         ),
       ),

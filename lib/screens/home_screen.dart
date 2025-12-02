@@ -20,12 +20,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _mapController = controller;
   }
 
-  // UniRide colors
+  // Consistent UniRide colors (same as other screens)
   static const Color kUniRideTeal1 = Color(0xFF00BCC9);
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
   static const Color kUniRideYellow = Color(0xFFFFC727);
 
-  // Screen background (same as OfferRide)
+  // Same background teal used across all new screens
   static const Color kScreenTeal = Color(0xFFE0F9FB);
 
   @override
@@ -34,39 +34,39 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: kScreenTeal,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ---------------- HEADER TITLE ----------------
+              // ---------- APP TITLE ----------
               const Text(
                 "UniRide",
                 style: TextStyle(
                   color: kUniRideTeal2,
-                  fontSize: 30,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 25),
 
-              // ---------------- MAP CARD ----------------
+              // ---------- MAP CARD ----------
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: Colors.black12,
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
                     ),
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(20),
                   child: SizedBox(
-                    height: 270,
+                    height: 280,
                     width: double.infinity,
                     child: GoogleMap(
                       onMapCreated: _onMapCreated,
@@ -81,34 +81,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 30),
 
-              // ---------------- TITLE TEXT ----------------
-              const Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Text(
-                  "Where do you want to go?",
-                  style: TextStyle(
-                    color: kUniRideTeal2,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+              // ---------- SECTION HEADER ----------
+              const Text(
+                "Where do you want to go?",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: kUniRideTeal2,
                 ),
               ),
 
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
 
-              const Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Text(
-                  "Choose an option to get started",
-                  style: TextStyle(color: Colors.black54, fontSize: 15),
-                ),
+              const Text(
+                "Choose an option to get started",
+                style: TextStyle(color: Colors.black54, fontSize: 15),
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
-              // ---------------- OFFER RIDE BUTTON ----------------
+              // ---------- OFFER RIDE BUTTON ----------
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -122,10 +116,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kUniRideYellow,
-                    elevation: 4,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    elevation: 5,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                     shadowColor: Colors.black26,
                   ),
@@ -140,9 +134,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
 
-              // ---------------- FIND RIDE BUTTON ----------------
+              // ---------- FIND RIDE BUTTON ----------
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -153,10 +147,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     side: const BorderSide(color: kUniRideTeal2, width: 2),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                   ),
                   child: const Text(
@@ -170,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 40),
             ],
           ),
         ),

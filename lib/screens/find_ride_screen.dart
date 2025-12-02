@@ -21,68 +21,178 @@ class _FindRideScreenState extends State<FindRideScreen> {
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
   static const Color kUniRideYellow = Color(0xFFFFC727);
 
-  // ---------------- DATE PICKER ----------------
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2030),
-    );
-    if (picked != null) {
-      _dateController.text = "${picked.year}/${picked.month}/${picked.day}";
-    }
-  }
-
-  // ---------------- WHEEL TIME PICKER ----------------
-  Future<void> _openWheelPicker({required bool isStart}) async {
-    TimeOfDay selected = TimeOfDay.now();
-
-    await showModalBottomSheet(
+  // ---------------- BOTTOM SHEET BLUE CALENDAR ----------------
+  void _openCalendar() {
+    showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) {
-        return SizedBox(
-          height: 250,
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: 400,
           child: Column(
             children: [
-              const SizedBox(height: 12),
               const Text(
-                "Select Time",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Expanded(
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.time,
-                  use24hFormat: false,
-                  onDateTimeChanged: (value) {
-                    selected = TimeOfDay(
-                      hour: value.hour,
-                      minute: value.minute,
-                    );
-                  },
+                "Select a Date",
+                style: TextStyle(
+                  color: kUniRideTeal2,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              TextButton(
+              const SizedBox(height: 10),
+
+              Expanded(
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: kUniRideTeal2, // selected circle
+                      onPrimary: Colors.white, // selected text
+                      onSurface: Colors.black87,
+                    ),
+                  ),
+                  child: CalendarDatePicker(
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2030),
+                    onDateChanged: (picked) {
+                      _dateController.text =
+                          "${picked.day}/${picked.month}/${picked.year}";
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ---------------- AM/PM TIME PICKER (FROM OFFER RIDE) ----------------
+  void _openTimePicker({required bool isStart}) {
+    final hours = List.generate(12, (i) => i + 1); // 1–12
+    final minutes = List.generate(60, (i) => i.toString().padLeft(2, "0"));
+    final ampm = ["AM", "PM"];
+
+    int selectedHour = 0;
+    int selectedMinute = 0;
+    int selectedAmPm = 0;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: 330,
+          child: Column(
+            children: [
+              const Text(
+                "Select Time",
+                style: TextStyle(
+                  color: kUniRideTeal2,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              Expanded(
+                child: Row(
+                  children: [
+                    // HOUR
+                    Expanded(
+                      child: CupertinoPicker(
+                        itemExtent: 32,
+                        scrollController: FixedExtentScrollController(
+                          initialItem: 0,
+                        ),
+                        onSelectedItemChanged: (i) {
+                          selectedHour = i;
+                        },
+                        children: hours
+                            .map((h) => Center(child: Text(h.toString())))
+                            .toList(),
+                      ),
+                    ),
+
+                    // MINUTE
+                    Expanded(
+                      child: CupertinoPicker(
+                        itemExtent: 32,
+                        scrollController: FixedExtentScrollController(
+                          initialItem: 0,
+                        ),
+                        onSelectedItemChanged: (i) {
+                          selectedMinute = i;
+                        },
+                        children: minutes
+                            .map((m) => Center(child: Text(m)))
+                            .toList(),
+                      ),
+                    ),
+
+                    // AM / PM
+                    Expanded(
+                      child: CupertinoPicker(
+                        itemExtent: 32,
+                        scrollController: FixedExtentScrollController(
+                          initialItem: 0,
+                        ),
+                        onSelectedItemChanged: (i) {
+                          selectedAmPm = i;
+                        },
+                        children: ampm
+                            .map((p) => Center(child: Text(p)))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kUniRideTeal2,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 onPressed: () {
+                  int hour = hours[selectedHour] % 12;
+                  if (selectedAmPm == 1) hour += 12;
+
+                  TimeOfDay finalTime = TimeOfDay(
+                    hour: hour,
+                    minute: selectedMinute,
+                  );
+
                   setState(() {
                     if (isStart) {
-                      startTime = selected;
+                      startTime = finalTime;
                     } else {
-                      endTime = selected;
+                      endTime = finalTime;
                     }
                   });
+
                   Navigator.pop(context);
                 },
-                child: const Text(
-                  "Done",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: kUniRideTeal2,
-                    fontSize: 16,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                  child: Text(
+                    "Confirm",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -95,9 +205,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
 
   String _formatTime(TimeOfDay? time) {
     if (time == null) return "--:--";
-    final now = DateTime.now();
-    final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    return TimeOfDay.fromDateTime(dt).format(context);
+    return time.format(context);
   }
 
   @override
@@ -105,7 +213,6 @@ class _FindRideScreenState extends State<FindRideScreen> {
     return Scaffold(
       backgroundColor: kScreenTeal,
 
-      // ---------- APP BAR WITH BACK BUTTON ----------
       appBar: AppBar(
         backgroundColor: kScreenTeal,
         elevation: 0,
@@ -134,8 +241,6 @@ class _FindRideScreenState extends State<FindRideScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 6),
-
               const Text(
                 "Enter your details to search for available rides.",
                 style: TextStyle(color: Colors.black54, fontSize: 14),
@@ -143,7 +248,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
 
               const SizedBox(height: 20),
 
-              // ---------------- PICKUP ----------------
+              // PICKUP
               _inputField(
                 controller: _pickupController,
                 icon: Icons.location_on_outlined,
@@ -152,9 +257,9 @@ class _FindRideScreenState extends State<FindRideScreen> {
 
               const SizedBox(height: 16),
 
-              // ---------------- DATE ----------------
+              // DATE (BOTTOM SHEET)
               GestureDetector(
-                onTap: _pickDate,
+                onTap: _openCalendar,
                 child: AbsorbPointer(
                   child: _inputField(
                     controller: _dateController,
@@ -166,9 +271,9 @@ class _FindRideScreenState extends State<FindRideScreen> {
 
               const SizedBox(height: 16),
 
-              // ---------------- START TIME ----------------
+              // START TIME
               GestureDetector(
-                onTap: () => _openWheelPicker(isStart: true),
+                onTap: () => _openTimePicker(isStart: true),
                 child: _timeField(
                   label: "Start Time",
                   value: _formatTime(startTime),
@@ -177,9 +282,9 @@ class _FindRideScreenState extends State<FindRideScreen> {
 
               const SizedBox(height: 16),
 
-              // ---------------- END TIME ----------------
+              // END TIME
               GestureDetector(
-                onTap: () => _openWheelPicker(isStart: false),
+                onTap: () => _openTimePicker(isStart: false),
                 child: _timeField(
                   label: "End Time",
                   value: _formatTime(endTime),
@@ -199,7 +304,6 @@ class _FindRideScreenState extends State<FindRideScreen> {
 
               const SizedBox(height: 14),
 
-              // ------- RIDE CARDS WITH FIXED NAVIGATION --------
               _rideCard(
                 name: "Talal AlHamer",
                 rating: "4.8",
@@ -221,8 +325,6 @@ class _FindRideScreenState extends State<FindRideScreen> {
                 seats: "3 seats",
                 price: "BD 3.0",
               ),
-
-              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -324,13 +426,14 @@ class _FindRideScreenState extends State<FindRideScreen> {
                 style: const TextStyle(color: Colors.white, fontSize: 20),
               ),
             ),
+
             const SizedBox(width: 14),
 
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Name + rating badge
+                  // Name + Rating
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

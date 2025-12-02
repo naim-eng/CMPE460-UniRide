@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-//import 'test_screen.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 
@@ -19,8 +18,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _loading = false;
 
-  // UniRide color
+  // UniRide color palette (same as home screen)
   static const Color kScreenTeal = Color(0xFFE0F9FB);
+  static const Color kUniRideTeal2 = Color(0xFF009DAE);
+  static const Color kUniRideYellow = Color(0xFFFFC727);
 
   void _showError(String message) {
     if (!mounted) return;
@@ -33,7 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    // VALIDATION
     if (email.isEmpty || password.isEmpty) {
       _showError("Please fill in all fields.");
       return;
@@ -84,9 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         _showError(e.message ?? "Login failed. Try again.");
       }
-    } catch (e, st) {
-      print("UNEXPECTED LOGIN ERROR: $e");
-      print(st);
+    } catch (e) {
       _showError("Something went wrong. Try again.");
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -103,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kScreenTeal, // ← MATCHED BACKGROUND
+      backgroundColor: kScreenTeal,
 
       body: Center(
         child: SingleChildScrollView(
@@ -113,6 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 30),
 
+                // -------- LOGO --------
                 ClipOval(
                   child: Image.asset(
                     'assets/uniride_logo.jpg',
@@ -127,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Text(
                   "UniRide",
                   style: TextStyle(
-                    color: Colors.black87,
+                    color: kUniRideTeal2,
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
@@ -144,6 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 40),
 
+                // -------- INPUT FIELDS --------
                 _input("Email", Icons.email_outlined, _emailController),
                 const SizedBox(height: 16),
 
@@ -156,24 +156,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 25),
 
-                // LOGIN BUTTON
+                // -------- LOGIN BUTTON --------
                 GestureDetector(
-                  onTap: _loading
-                      ? null
-                      : () async {
-                          try {
-                            await _login();
-                          } catch (e, st) {
-                            print("FATAL LOGIN TAP ERROR: $e");
-                            print(st);
-                            _showError("Unexpected error during login.");
-                          }
-                        },
+                  onTap: _loading ? null : _login,
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFC727),
+                      color: kUniRideYellow,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
@@ -193,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 20),
 
-                // SIGN UP BUTTON
+                // -------- SIGN UP BUTTON --------
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -205,15 +195,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.30),
+                      color: Colors.white.withOpacity(0.35),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white70),
+                      border: Border.all(color: kUniRideTeal2),
                     ),
                     child: const Center(
                       child: Text(
                         "Create Account",
                         style: TextStyle(
-                          color: Colors.black87,
+                          color: kUniRideTeal2,
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                         ),
@@ -231,6 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // ----------- REUSABLE INPUT FIELD -----------
   Widget _input(
     String hint,
     IconData icon,
@@ -239,14 +230,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
+        color: Colors.white.withOpacity(0.95),
         borderRadius: BorderRadius.circular(14),
       ),
       child: TextField(
         obscureText: obscure,
         controller: controller,
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.teal.shade700),
+          prefixIcon: Icon(icon, color: kUniRideTeal2),
           border: InputBorder.none,
           hintText: hint,
           contentPadding: const EdgeInsets.symmetric(vertical: 16),
