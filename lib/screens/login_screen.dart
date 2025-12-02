@@ -19,13 +19,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _loading = false;
 
+  // UniRide color
+  static const Color kScreenTeal = Color(0xFFE0F9FB);
+
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -52,11 +52,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
 
     try {
-      // Firebase login
-      final cred = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: password);
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      // Fetch user profile
       final userDoc = await FirebaseFirestore.instance
           .collection("users")
           .doc(cred.user!.uid)
@@ -67,24 +67,11 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // DEBUG: log that login + fetch succeeded
-      // ignore: avoid_print
-      print("LOGIN OK for ${cred.user!.uid}");
-
-      // Go to home page
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
-
-      // Temporarily go to a simple test screen
-      // if (!mounted) return;
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (_) => const TestScreen()),
-      // );
-
     } on FirebaseAuthException catch (e) {
       if (e.code == "invalid-email") {
         _showError("The email format is invalid.");
@@ -98,15 +85,11 @@ class _LoginScreenState extends State<LoginScreen> {
         _showError(e.message ?? "Login failed. Try again.");
       }
     } catch (e, st) {
-      // Catch any unexpected Dart-side errors and log them
-      // ignore: avoid_print
       print("UNEXPECTED LOGIN ERROR: $e");
       print(st);
       _showError("Something went wrong. Try again.");
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -120,142 +103,127 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF00BCC9), Color(0xFF009DAE)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                children: [
-                  const SizedBox(height: 30),
+      backgroundColor: kScreenTeal, // ← MATCHED BACKGROUND
 
-                  // LOGO
-                  ClipOval(
-                    child: Image.asset(
-                      'assets/uniride_logo.jpg',
-                      height: 120,
-                      width: 120,
-                      fit: BoxFit.cover,
+      body: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              children: [
+                const SizedBox(height: 30),
+
+                ClipOval(
+                  child: Image.asset(
+                    'assets/uniride_logo.jpg',
+                    height: 120,
+                    width: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+
+                const SizedBox(height: 25),
+
+                const Text(
+                  "UniRide",
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                const Text(
+                  "Connecting students for cheaper and safer rides",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.black54, fontSize: 14),
+                ),
+
+                const SizedBox(height: 40),
+
+                _input("Email", Icons.email_outlined, _emailController),
+                const SizedBox(height: 16),
+
+                _input(
+                  "Password",
+                  Icons.lock_outline,
+                  _passwordController,
+                  obscure: true,
+                ),
+
+                const SizedBox(height: 25),
+
+                // LOGIN BUTTON
+                GestureDetector(
+                  onTap: _loading
+                      ? null
+                      : () async {
+                          try {
+                            await _login();
+                          } catch (e, st) {
+                            print("FATAL LOGIN TAP ERROR: $e");
+                            print(st);
+                            _showError("Unexpected error during login.");
+                          }
+                        },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFC727),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  const Text(
-                    "UniRide",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  const Text(
-                    "Connecting students for cheaper and safer rides",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  _input("Email", Icons.email_outlined, _emailController),
-                  const SizedBox(height: 16),
-
-                  _input(
-                    "Password",
-                    Icons.lock_outline,
-                    _passwordController,
-                    obscure: true,
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // LOGIN BUTTON (YELLOW)
-                  GestureDetector(
-                    onTap: _loading
-                        ? null
-                        : () async {
-                            try {
-                              await _login();
-                            } catch (e, st) {
-                              // This should almost never trigger, but if it does
-                              // we see it in the console instead of a silent crash.
-                              // ignore: avoid_print
-                              print("FATAL LOGIN TAP ERROR: $e");
-                              print(st);
-                              _showError("Unexpected error during login.");
-                            }
-                          },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFC727),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: _loading
-                            ? const CircularProgressIndicator(
-                                color: Colors.black,
-                              )
-                            : const Text(
-                                "Login",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.black87,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                    child: Center(
+                      child: _loading
+                          ? const CircularProgressIndicator(color: Colors.black)
+                          : const Text(
+                              "Login",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.black87,
+                                fontWeight: FontWeight.bold,
                               ),
-                      ),
+                            ),
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-                  // SIGN UP (LIGHT BLUE BUTTON)
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RegisterScreen(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.20),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white70),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "Create Account",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
+                // SIGN UP BUTTON
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.30),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white70),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "Create Account",
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 40),
-                ],
-              ),
+                const SizedBox(height: 40),
+              ],
             ),
           ),
         ),

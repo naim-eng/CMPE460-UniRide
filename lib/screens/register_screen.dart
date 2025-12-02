@@ -18,6 +18,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _loading = false;
 
+  // Colors (matching UniRide)
+  static const Color kScreenTeal = Color(0xFFE0F9FB);
+  static const Color kUniRideTeal2 = Color(0xFF009DAE);
+  static const Color kUniRideYellow = Color(0xFFFFC727);
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -59,11 +64,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _loading = true);
 
     try {
-      // Create Firebase User
       UserCredential cred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
 
-      // Save profile in Firestore
       await FirebaseFirestore.instance
           .collection("users")
           .doc(cred.user!.uid)
@@ -75,7 +78,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             "createdAt": Timestamp.now(),
           });
 
-      Navigator.pop(context); // go back to Login
+      Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       if (e.code == "email-already-in-use") {
         _showError("An account already exists for this email.");
@@ -96,103 +99,117 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF00BCC9), Color(0xFF009DAE)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+      backgroundColor: kScreenTeal,
+
+      // ---------------- APP BAR WITH BACK BUTTON ----------------
+      appBar: AppBar(
+        backgroundColor: kScreenTeal,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: kUniRideTeal2,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        centerTitle: true,
+        title: const Text(
+          "Register",
+          style: TextStyle(
+            color: kUniRideTeal2,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                children: [
-                  const SizedBox(height: 40),
+      ),
 
-                  const Text(
-                    "Create an Account",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
+      // ---------------- BODY ----------------
+      body: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+
+                const Text(
+                  "Create an Account",
+                  style: TextStyle(
+                    color: kUniRideTeal2,
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 30),
+
+                _input("Full Name", Icons.person, _nameController),
+                const SizedBox(height: 16),
+
+                _input("Email", Icons.email_outlined, _emailController),
+                const SizedBox(height: 16),
+
+                _input("Phone Number", Icons.phone, _phoneController),
+                const SizedBox(height: 16),
+
+                _input(
+                  "Password",
+                  Icons.lock_outline,
+                  _passwordController,
+                  obscure: true,
+                ),
+                const SizedBox(height: 16),
+
+                _input(
+                  "Confirm Password",
+                  Icons.lock_outline,
+                  _confirmController,
+                  obscure: true,
+                ),
+
+                const SizedBox(height: 30),
+
+                // ---------------- REGISTER BUTTON ----------------
+                GestureDetector(
+                  onTap: _loading ? null : _register,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: kUniRideYellow,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  _input("Full Name", Icons.person, _nameController),
-                  const SizedBox(height: 16),
-
-                  _input("Email", Icons.email_outlined, _emailController),
-                  const SizedBox(height: 16),
-
-                  _input("Phone Number", Icons.phone, _phoneController),
-                  const SizedBox(height: 16),
-
-                  _input(
-                    "Password",
-                    Icons.lock_outline,
-                    _passwordController,
-                    obscure: true,
-                  ),
-                  const SizedBox(height: 16),
-
-                  _input(
-                    "Confirm Password",
-                    Icons.lock_outline,
-                    _confirmController,
-                    obscure: true,
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // REGISTER BUTTON (YELLOW)
-                  GestureDetector(
-                    onTap: _loading ? null : _register,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFC727),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: _loading
-                            ? const CircularProgressIndicator(
-                                color: Colors.black,
-                              )
-                            : const Text(
-                                "Register →",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.black87,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                    child: Center(
+                      child: _loading
+                          ? const CircularProgressIndicator(color: Colors.black)
+                          : const Text(
+                              "Register →",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.black87,
+                                fontWeight: FontWeight.bold,
                               ),
-                      ),
+                            ),
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 25),
+                const SizedBox(height: 25),
 
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Text(
-                      "Already have an account? Login",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        decoration: TextDecoration.underline,
-                      ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Text(
+                    "Already have an account? Login",
+                    style: TextStyle(
+                      color: kUniRideTeal2,
+                      fontSize: 16,
+                      decoration: TextDecoration.underline,
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 40),
-                ],
-              ),
+                const SizedBox(height: 40),
+              ],
             ),
           ),
         ),
@@ -200,6 +217,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  // ---------------- INPUT FIELD ----------------
   Widget _input(
     String hint,
     IconData icon,
@@ -208,14 +226,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kUniRideTeal2.withOpacity(0.4)),
       ),
       child: TextField(
         obscureText: obscure,
         controller: controller,
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.teal.shade700),
+          prefixIcon: Icon(icon, color: kUniRideTeal2),
           border: InputBorder.none,
           hintText: hint,
           contentPadding: const EdgeInsets.symmetric(vertical: 16),

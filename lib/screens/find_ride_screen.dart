@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'ride_details_screen.dart';
 
 class FindRideScreen extends StatefulWidget {
   const FindRideScreen({super.key});
@@ -14,6 +15,11 @@ class _FindRideScreenState extends State<FindRideScreen> {
 
   TimeOfDay? startTime;
   TimeOfDay? endTime;
+
+  // UniRide colors
+  static const Color kScreenTeal = Color(0xFFE0F9FB);
+  static const Color kUniRideTeal2 = Color(0xFF009DAE);
+  static const Color kUniRideYellow = Color(0xFFFFC727);
 
   // ---------------- DATE PICKER ----------------
   Future<void> _pickDate() async {
@@ -75,7 +81,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                   "Done",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.teal,
+                    color: kUniRideTeal2,
                     fontSize: 16,
                   ),
                 ),
@@ -97,206 +103,149 @@ class _FindRideScreenState extends State<FindRideScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF00BCC9), Color(0xFF009DAE)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+      backgroundColor: kScreenTeal,
+
+      // ---------- APP BAR WITH BACK BUTTON ----------
+      appBar: AppBar(
+        backgroundColor: kScreenTeal,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: kUniRideTeal2,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "Find a Ride",
+          style: TextStyle(
+            color: kUniRideTeal2,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
+        centerTitle: true,
+      ),
 
-                const Text(
-                  "Find Ride",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
+      // ---------- BODY ----------
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 6),
+
+              const Text(
+                "Enter your details to search for available rides.",
+                style: TextStyle(color: Colors.black54, fontSize: 14),
+              ),
+
+              const SizedBox(height: 20),
+
+              // ---------------- PICKUP ----------------
+              _inputField(
+                controller: _pickupController,
+                icon: Icons.location_on_outlined,
+                hint: "Pickup Location",
+              ),
+
+              const SizedBox(height: 16),
+
+              // ---------------- DATE ----------------
+              GestureDetector(
+                onTap: _pickDate,
+                child: AbsorbPointer(
+                  child: _inputField(
+                    controller: _dateController,
+                    icon: Icons.calendar_today_outlined,
+                    hint: "Date (dd/mm/yyyy)",
                   ),
                 ),
+              ),
 
-                const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-                // ---------------- PICKUP ----------------
-                _textField(
-                  controller: _pickupController,
-                  icon: Icons.location_on_outlined,
-                  hint: "Pickup Location",
+              // ---------------- START TIME ----------------
+              GestureDetector(
+                onTap: () => _openWheelPicker(isStart: true),
+                child: _timeField(
+                  label: "Start Time",
+                  value: _formatTime(startTime),
                 ),
+              ),
 
-                const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                // ---------------- DATE ----------------
-                GestureDetector(
-                  onTap: _pickDate,
-                  child: AbsorbPointer(
-                    child: _textField(
-                      controller: _dateController,
-                      icon: Icons.calendar_today_outlined,
-                      hint: "Date (dd/mm/yyyy)",
-                    ),
-                  ),
+              // ---------------- END TIME ----------------
+              GestureDetector(
+                onTap: () => _openWheelPicker(isStart: false),
+                child: _timeField(
+                  label: "End Time",
+                  value: _formatTime(endTime),
                 ),
+              ),
 
-                const SizedBox(height: 16),
+              const SizedBox(height: 30),
 
-                // ---------------------------------------------------
-                // START TIME (LABEL + TIME INSIDE SAME BOX)
-                // ---------------------------------------------------
-                GestureDetector(
-                  onTap: () => _openWheelPicker(isStart: true),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.98),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    height: 56,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              color: Colors.teal.shade700,
-                            ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              "Start Time:",
-                              style: TextStyle(
-                                color: Colors.black54,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          _formatTime(startTime),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              const Text(
+                "Available Rides",
+                style: TextStyle(
+                  color: kUniRideTeal2,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
 
-                const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-                // ---------------------------------------------------
-                // END TIME (LABEL + TIME INSIDE SAME BOX)
-                // ---------------------------------------------------
-                GestureDetector(
-                  onTap: () => _openWheelPicker(isStart: false),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.98),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    height: 56,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              color: Colors.teal.shade700,
-                            ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              "End Time:",
-                              style: TextStyle(
-                                color: Colors.black54,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          _formatTime(endTime),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              // ------- RIDE CARDS WITH FIXED NAVIGATION --------
+              _rideCard(
+                name: "Talal AlHamer",
+                rating: "4.8",
+                pickup: "AUBH Campus",
+                destination: "City Center",
+                time: "2:00 PM",
+                seats: "2 seats",
+                price: "BD 2.0",
+              ),
 
-                const SizedBox(height: 30),
+              const SizedBox(height: 12),
 
-                const Text(
-                  "Available Rides",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              _rideCard(
+                name: "Renad Ibrahim",
+                rating: "4.9",
+                pickup: "Manama",
+                destination: "Riffa",
+                time: "4:00 PM",
+                seats: "3 seats",
+                price: "BD 3.0",
+              ),
 
-                const SizedBox(height: 14),
-
-                _rideCard(
-                  context,
-                  name: "Talal AlHamer",
-                  rating: "4.8",
-                  pickup: "AUBH Campus",
-                  destination: "City Center",
-                  time: "2:00 PM",
-                  seats: "2 seats",
-                  price: "BD 2.0",
-                ),
-                const SizedBox(height: 12),
-
-                _rideCard(
-                  context,
-                  name: "Renad Ibrahim",
-                  rating: "4.9",
-                  pickup: "Manama",
-                  destination: "Riffa",
-                  time: "4:00 PM",
-                  seats: "3 seats",
-                  price: "BD 3.0",
-                ),
-
-                const SizedBox(height: 30),
-              ],
-            ),
+              const SizedBox(height: 30),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // ---------------- STYLIZED INPUT FIELD ----------------
-  Widget _textField({
+  // ---------------- INPUT FIELD ----------------
+  Widget _inputField({
     required TextEditingController controller,
     required IconData icon,
     required String hint,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.98),
+        color: Colors.white,
+        border: Border.all(color: kUniRideTeal2.withOpacity(0.4)),
         borderRadius: BorderRadius.circular(14),
       ),
       child: TextField(
         controller: controller,
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.teal.shade700),
+          prefixIcon: Icon(icon, color: kUniRideTeal2),
           hintText: hint,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 15),
@@ -305,9 +254,38 @@ class _FindRideScreenState extends State<FindRideScreen> {
     );
   }
 
+  // ---------------- TIME FIELD ----------------
+  Widget _timeField({required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 56,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: kUniRideTeal2.withOpacity(0.4)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            "$label:",
+            style: const TextStyle(color: Colors.black54, fontSize: 15),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ---------------- RIDE CARD ----------------
-  Widget _rideCard(
-    BuildContext context, {
+  Widget _rideCard({
     required String name,
     required String rating,
     required String pickup,
@@ -317,7 +295,12 @@ class _FindRideScreenState extends State<FindRideScreen> {
     required String price,
   }) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/ride-details'),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const RideDetailsScreen()),
+        );
+      },
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -325,7 +308,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withOpacity(0.12),
               blurRadius: 6,
               offset: const Offset(0, 3),
             ),
@@ -335,17 +318,14 @@ class _FindRideScreenState extends State<FindRideScreen> {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: Colors.teal.shade400,
+              backgroundColor: kUniRideTeal2,
               child: Text(
                 name[0],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 20),
               ),
             ),
             const SizedBox(width: 14),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,7 +339,6 @@ class _FindRideScreenState extends State<FindRideScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
                         ),
                       ),
                       Container(
@@ -391,12 +370,14 @@ class _FindRideScreenState extends State<FindRideScreen> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 6),
                   Text(
                     "$pickup → $destination",
                     style: const TextStyle(color: Colors.black54, fontSize: 13),
                   ),
                   const SizedBox(height: 8),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -408,28 +389,22 @@ class _FindRideScreenState extends State<FindRideScreen> {
                             color: Colors.black54,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            time,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          Text(time, style: const TextStyle(fontSize: 13)),
                         ],
                       ),
                       Text(
                         seats,
                         style: const TextStyle(
-                          fontSize: 13,
                           color: Colors.black54,
+                          fontSize: 13,
                         ),
                       ),
                       Text(
                         price,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.teal,
+                          fontWeight: FontWeight.bold,
+                          color: kUniRideTeal2,
                         ),
                       ),
                     ],

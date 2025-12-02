@@ -3,25 +3,38 @@ import 'package:flutter/material.dart';
 class RideDetailsScreen extends StatelessWidget {
   const RideDetailsScreen({super.key});
 
+  static const Color kScreenTeal = Color(0xFFE0F9FB);
+  static const Color kUniRideTeal2 = Color(0xFF009DAE);
+  static const Color kUniRideYellow = Color(0xFFFFC727);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: kScreenTeal,
 
+      // ---------------- APP BAR ----------------
       appBar: AppBar(
+        backgroundColor: kScreenTeal,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: kUniRideTeal2,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        backgroundColor: const Color(0xFF009DAE),
-        elevation: 0,
+        centerTitle: true,
         title: const Text(
           "Ride Details",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: kUniRideTeal2,
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
         ),
-        centerTitle: true,
       ),
 
+      // ---------------- BODY ----------------
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -45,17 +58,17 @@ class RideDetailsScreen extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 26,
-                    backgroundColor: Colors.teal.shade100,
+                    backgroundColor: kUniRideTeal2.withOpacity(0.15),
                     child: const Icon(
                       Icons.person,
                       size: 30,
-                      color: Colors.teal,
+                      color: kUniRideTeal2,
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Column(
+                  const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         "Talal AlHamer",
                         style: TextStyle(
@@ -93,15 +106,11 @@ class RideDetailsScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.directions_car,
-                    size: 30,
-                    color: Colors.teal.shade600,
-                  ),
+                  Icon(Icons.directions_car, size: 30, color: kUniRideTeal2),
                   const SizedBox(width: 16),
-                  Column(
+                  const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         "Honda Civic - Blue",
                         style: TextStyle(
@@ -128,7 +137,7 @@ class RideDetailsScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.teal.withOpacity(0.10),
+                color: kUniRideTeal2.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Center(
@@ -137,7 +146,7 @@ class RideDetailsScreen extends StatelessWidget {
                     Text(
                       "Route Map View",
                       style: TextStyle(
-                        color: Colors.teal,
+                        color: kUniRideTeal2,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -175,25 +184,25 @@ class RideDetailsScreen extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            // ---------------- YELLOW JOIN BUTTON ----------------
+            // ---------------- JOIN RIDE BUTTON ----------------
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {},
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.yellow[600], // ← MATCH LOGIN PAGE
+                  backgroundColor: kUniRideYellow,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  elevation: 0,
+                  elevation: 2,
                 ),
                 child: const Text(
                   "Request to Join Ride",
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87, // ← Always readable on yellow
+                    color: Colors.black87,
                   ),
                 ),
               ),
@@ -206,7 +215,7 @@ class RideDetailsScreen extends StatelessWidget {
     );
   }
 
-  // ---------------- INFO ROW REUSABLE ----------------
+  // ---------------- REUSABLE INFO ROW ----------------
   Widget _rideInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
