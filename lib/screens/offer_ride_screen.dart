@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'ride_published_screen.dart';
 
 class OfferRideScreen extends StatefulWidget {
   const OfferRideScreen({super.key});
@@ -145,9 +146,16 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             if (_formKey.currentState!.validate()) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Ride created (UI only)"),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => RidePublishedScreen(
+                                    from: _fromController.text,
+                                    to: _toController.text,
+                                    date: _dateController.text,
+                                    time: _timeController.text,
+                                    price: _priceController.text,
+                                  ),
                                 ),
                               );
                             }

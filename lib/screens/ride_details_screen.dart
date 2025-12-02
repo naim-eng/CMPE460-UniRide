@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'request_confirmation_screen.dart';
 
 class RideDetailsScreen extends StatelessWidget {
   const RideDetailsScreen({super.key});
@@ -184,11 +185,18 @@ class RideDetailsScreen extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            // ---------------- JOIN RIDE BUTTON ----------------
+            // ---------------- JOIN BUTTON ----------------
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RequestConfirmationScreen(),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kUniRideYellow,
                   padding: const EdgeInsets.symmetric(vertical: 16),
