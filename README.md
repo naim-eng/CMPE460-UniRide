@@ -3,7 +3,7 @@
 UniRide is a cross-platform Flutter application designed to help university students offer rides, find rides, and coordinate trips efficiently. The app supports both drivers and riders, including ride posting, searching, accepting requests, and in-app communication.
 
 # Features
-### Driver Features
+## Driver Features
 
 - Post a ride with details such as destination, time, seats, and price
 - View incoming rider requests
@@ -11,7 +11,7 @@ UniRide is a cross-platform Flutter application designed to help university stud
 - View all posted rides
 - Rate riders after the ride
 
-# Rider Features
+## Rider Features
 
 - Search for available rides
 - Request to join a ride
@@ -19,7 +19,7 @@ UniRide is a cross-platform Flutter application designed to help university stud
 - Chat with the assigned driver
 - Rate drivers after the ride
 
-# System Features
+## System Features
 
 - Firebase authentication
 - Real-time updates using Firestore
@@ -27,7 +27,7 @@ UniRide is a cross-platform Flutter application designed to help university stud
 - Google Maps integration
 - Organized UI built with Flutter
 
-# Tech Stack
+## Tech Stack
 
 ### Frontend
 
@@ -76,12 +76,7 @@ Run the Application
 flutter run
 
 Folder Structure (Simplified)
-lib/
- ├── screens/
- ├── widgets/
- ├── services/
- ├── models/
- └── main.dart
+lib -> (screens , main.dart)
 
 # Possible Future Additions
 
