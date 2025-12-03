@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'offer_ride_screen.dart';
 import 'find_ride_screen.dart';
@@ -12,22 +14,83 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late GoogleMapController _mapController;
+  final MapController _mapController = MapController();
+  LatLng _center = const LatLng(26.0667, 50.5577); // Default Bahrain location
+  LatLng? _userLocation;
+  LatLng? _selectedPoint;
+  bool _mapLoaded = false;
 
-  final LatLng _center = const LatLng(26.0667, 50.5577); // Bahrain
-
-  void _onMapCreated(GoogleMapController controller) {
-    _mapController = controller;
-  }
-
-  // Consistent UniRide colors (same as other screens)
-  static const Color kUniRideTeal1 = Color(0xFF00BCC9);
+  // UniRide Colors
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
   static const Color kUniRideYellow = Color(0xFFFFC727);
-
-  // Same background teal used across all new screens
   static const Color kScreenTeal = Color(0xFFE0F9FB);
 
+  @override
+  void initState() {
+    super.initState();
+    _loadUserLocation(); // Auto-center on startup (Option A)
+  }
+
+  // -----------------------
+  // USER LOCATION LOADING
+  // -----------------------
+  Future<void> _loadUserLocation() async {
+    bool allowed = await _handleLocationPermission(context);
+
+    if (!allowed) {
+      setState(() => _mapLoaded = true);
+      return;
+    }
+
+    Position pos = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    _userLocation = LatLng(pos.latitude, pos.longitude);
+
+    setState(() {
+      _center = _userLocation!;
+      _mapLoaded = true;
+    });
+
+    // Auto move map to the user's location
+    _mapController.move(_center, 14);
+  }
+
+  Future<bool> _handleLocationPermission(BuildContext context) async {
+    LocationPermission permission;
+
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      _showMessage("Please enable location services.");
+      return false;
+    }
+
+    permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+
+      if (permission == LocationPermission.denied) {
+        _showMessage("UniRide works best with your location enabled.");
+        return false;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      _showMessage("Location permission permanently denied. Open Settings.");
+      return false;
+    }
+
+    return true;
+  }
+
+  void _showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // -----------------------
+  // UI
+  // -----------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,7 +101,6 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ---------- APP TITLE ----------
               const Text(
                 "UniRide",
                 style: TextStyle(
@@ -50,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 25),
 
-              // ---------- MAP CARD ----------
+              // MAP CARD
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -68,14 +130,87 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: SizedBox(
                     height: 280,
                     width: double.infinity,
-                    child: GoogleMap(
-                      onMapCreated: _onMapCreated,
-                      initialCameraPosition: CameraPosition(
-                        target: _center,
-                        zoom: 12,
-                      ),
-                      myLocationEnabled: false,
-                      zoomControlsEnabled: false,
+                    child: Stack(
+                      children: [
+                        //! THE MAP
+                        SizedBox(
+                          height: 280,
+                          width: double.infinity,
+                          child: !_mapLoaded
+                              ? const Center(child: CircularProgressIndicator())
+                              : FlutterMap(
+                                  mapController: _mapController,
+                                  options: MapOptions(
+                                    initialCenter: _center,
+                                    initialZoom: 13,
+                                    onTap: (_, point) {
+                                      setState(() {
+                                        _selectedPoint = point;
+                                      });
+                                    },
+                                  ),
+                                  children: [
+                                    TileLayer(
+                                      urlTemplate:
+                                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      userAgentPackageName:
+                                          'com.example.uniride_app',
+                                    ),
+
+                                    // USER LOCATION MARKER
+                                    if (_userLocation != null)
+                                      MarkerLayer(
+                                        markers: [
+                                          Marker(
+                                            point: _userLocation!,
+                                            child: const Icon(
+                                              Icons.my_location,
+                                              size: 28,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                    // PIN WHERE USER TAPS
+                                    if (_selectedPoint != null)
+                                      MarkerLayer(
+                                        markers: [
+                                          Marker(
+                                            point: _selectedPoint!,
+                                            child: const Icon(
+                                              Icons.location_pin,
+                                              size: 40,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                        ),
+
+                        // ⭐ CENTER MY LOCATION BUTTON
+                        Positioned(
+                          bottom: 12,
+                          right: 12,
+                          child: FloatingActionButton(
+                            mini: true,
+                            backgroundColor: Colors.white,
+                            child: const Icon(
+                              Icons.my_location,
+                              color: Colors.blue,
+                            ),
+                            onPressed: () {
+                              if (_userLocation != null) {
+                                _mapController.move(_userLocation!, 14);
+                              } else {
+                                _showMessage("Location not available.");
+                              }
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -83,7 +218,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 30),
 
-              // ---------- SECTION HEADER ----------
               const Text(
                 "Where do you want to go?",
                 style: TextStyle(
@@ -102,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 32),
 
-              // ---------- OFFER RIDE BUTTON ----------
+              // OFFER RIDE BUTTON
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -116,12 +250,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kUniRideYellow,
-                    elevation: 5,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    shadowColor: Colors.black26,
+                    elevation: 5,
                   ),
                   child: const Text(
                     "Offer a Ride",
@@ -136,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 18),
 
-              // ---------- FIND RIDE BUTTON ----------
+              // FIND RIDE BUTTON
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
