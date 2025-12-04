@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'my_requests_screen.dart';
+import 'rides_screen.dart';
 
 class RequestConfirmationScreen extends StatelessWidget {
   const RequestConfirmationScreen({super.key});
@@ -177,14 +177,14 @@ class RequestConfirmationScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // VIEW MY REQUESTS  (UPDATED)
+            // TRACK REQUEST STATUS
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const MyRequestsScreen()),
+                    MaterialPageRoute(builder: (_) => const RidesScreen()),
                   );
                 },
                 style: OutlinedButton.styleFrom(
@@ -195,7 +195,7 @@ class RequestConfirmationScreen extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  "View My Requests",
+                  "Track Request Status",
                   style: TextStyle(
                     color: kUniRideTeal2,
                     fontWeight: FontWeight.bold,

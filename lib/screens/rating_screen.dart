@@ -56,6 +56,8 @@ class _RatingScreenState extends State<RatingScreen> {
     try {
       final batch = FirebaseFirestore.instance.batch();
       final ratingsCollection = FirebaseFirestore.instance.collection('ratings');
+      final ridesCollection = FirebaseFirestore.instance.collection('rides');
+      final requestsCollection = FirebaseFirestore.instance.collection('ride_requests');
 
       // Add rating for each user
       for (final entry in ratings.entries) {
@@ -80,6 +82,24 @@ class _RatingScreenState extends State<RatingScreen> {
             'createdAt': FieldValue.serverTimestamp(),
           });
         }
+      }
+
+      // Mark ride as completed
+      batch.update(ridesCollection.doc(widget.rideId), {
+        'status': 'completed',
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Mark all ride requests for this ride as completed
+      final requestsSnapshot = await requestsCollection
+          .where('rideId', isEqualTo: widget.rideId)
+          .get();
+
+      for (final requestDoc in requestsSnapshot.docs) {
+        batch.update(requestDoc.reference, {
+          'status': 'completed',
+          'completedAt': FieldValue.serverTimestamp(),
+        });
       }
 
       await batch.commit();

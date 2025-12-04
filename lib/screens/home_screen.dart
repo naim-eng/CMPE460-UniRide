@@ -31,6 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Load map immediately, get location in background
+    _mapLoaded = true;
     _loadUserLocation(); // Auto-center on startup
   }
 
@@ -41,7 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
     bool allowed = await _handleLocationPermission(context);
 
     if (!allowed) {
-      setState(() => _mapLoaded = true);
       return;
     }
 
@@ -66,7 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _center = _userLocation!;
-        _mapLoaded = true;
       });
 
       // Auto move map to the user's location
@@ -82,7 +82,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       print('Error getting location: $e');
-      setState(() => _mapLoaded = true);
       _showMessage("Could not get your location. Using default location.");
     }
   }
@@ -213,10 +212,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         SizedBox(
                           height: 280,
                           width: double.infinity,
-                          child: !_mapLoaded
-                              ? const Center(child: CircularProgressIndicator())
-                              : GoogleMap(
+                          child: GoogleMap(
+                                  mapType: MapType.normal,
                                   onMapCreated: (controller) {
+                                    print('GoogleMap created successfully');
                                     _mapController = controller;
                                     // Move camera to user location after map is created
                                     if (_userLocation != null) {
@@ -234,6 +233,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     target: _center,
                                     zoom: 13,
                                   ),
+                                  compassEnabled: true,
+                                  mapToolbarEnabled: false,
                                   markers: {
                                     // USER LOCATION MARKER
                                     if (_userLocation != null)

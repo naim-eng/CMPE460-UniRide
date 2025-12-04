@@ -86,6 +86,64 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
     }
   }
 
+  Future<void> _cancelRide() async {
+    // Show confirmation dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Ride?'),
+        content: const Text(
+          'This will cancel the ride and remove it from search results. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Keep Ride'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performCancelRide();
+            },
+            child: const Text('Cancel Ride', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performCancelRide() async {
+    try {
+      // Update ride status to cancelled
+      await FirebaseFirestore.instance
+          .collection('rides')
+          .doc(widget.rideId)
+          .update({
+            'status': 'cancelled',
+            'cancelledAt': FieldValue.serverTimestamp(),
+          });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ride cancelled successfully'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        // Navigate back after a short delay
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) Navigator.pop(context);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error cancelling ride: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final from = widget.rideData['from'] ?? 'Unknown';
@@ -252,24 +310,45 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // End Ride Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: acceptedPassengers.isEmpty ? null : _endRide,
-                      icon: const Icon(Icons.flag, size: 20),
-                      label: const Text("End Ride"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kUniRideYellow,
-                        disabledBackgroundColor: Colors.grey[300],
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                  // Action Buttons (End Ride / Cancel Ride)
+                  Row(
+                    children: [
+                      // End Ride Button
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: acceptedPassengers.isEmpty ? null : _endRide,
+                          icon: const Icon(Icons.flag, size: 20),
+                          label: const Text("End Ride"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kUniRideYellow,
+                            disabledBackgroundColor: Colors.grey[300],
+                            foregroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 2,
+                          ),
                         ),
-                        elevation: 2,
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      // Cancel Ride Button
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _cancelRide,
+                          icon: const Icon(Icons.close, size: 20),
+                          label: const Text("Cancel Ride"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 20),

@@ -42,6 +42,33 @@ class RatingService {
     }
   }
 
+  /// Get both average rating and count as a combined string
+  static Future<String> getRatingDisplay(String userId) async {
+    try {
+      final query = await _firestore
+          .collection('ratings')
+          .where('ratedUserId', isEqualTo: userId)
+          .get();
+
+      if (query.docs.isEmpty) {
+        return "No ratings yet";
+      }
+
+      final total = query.docs.fold<int>(
+        0,
+        (sum, doc) => sum + (doc['score'] as int? ?? 0),
+      );
+
+      final average = total / query.docs.length;
+      final count = query.docs.length;
+
+      return "${average.toStringAsFixed(1)} ⭐ ($count rating${count != 1 ? 's' : ''})";
+    } catch (e) {
+      print('Error getting rating display: $e');
+      return "No ratings yet";
+    }
+  }
+
   /// Get rating as a stream for real-time updates
   static Stream<double> getRatingStream(String userId) {
     return _firestore

@@ -318,13 +318,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: FutureBuilder<double>(
-                        future: RatingService.getAverageRating(uid),
+                      child: FutureBuilder<String>(
+                        future: RatingService.getRatingDisplay(uid),
                         builder: (context, snapshot) {
-                          final rating = snapshot.data ?? 0.0;
+                          final ratingDisplay = snapshot.data ?? "No ratings yet";
                           return _StatCard(
                             label: "Rating",
-                            value: rating > 0 ? rating.toStringAsFixed(1) : "—",
+                            value: ratingDisplay,
                             icon: Icons.star,
                           );
                         },
