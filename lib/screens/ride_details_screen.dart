@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'request_confirmation_screen.dart';
 import 'rating_screen.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class RideDetailsScreen extends StatefulWidget {
   final String rideId;
@@ -19,12 +20,31 @@ class RideDetailsScreen extends StatefulWidget {
 }
 
 class _RideDetailsScreenState extends State<RideDetailsScreen> {
-
   static const Color kScreenTeal = Color(0xFFE0F9FB);
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
   static const Color kUniRideYellow = Color(0xFFFFC727);
 
   bool _isRequesting = false;
+  GoogleMapController? _mapController;
+
+  void _fitMap(LatLng from, LatLng to) {
+    if (_mapController == null) return;
+
+    final bounds = LatLngBounds(
+      southwest: LatLng(
+        (from.latitude <= to.latitude) ? from.latitude : to.latitude,
+        (from.longitude <= to.longitude) ? from.longitude : to.longitude,
+      ),
+      northeast: LatLng(
+        (from.latitude >= to.latitude) ? from.latitude : to.latitude,
+        (from.longitude >= to.longitude) ? from.longitude : to.longitude,
+      ),
+    );
+
+    Future.delayed(const Duration(milliseconds: 250), () {
+      _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 70));
+    });
+  }
 
   Future<void> _requestToJoinRide() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -33,13 +53,11 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
       return;
     }
 
-    // Check if user is the driver
     if (widget.rideData['driverId'] == user.uid) {
       _showMessage("You cannot request your own ride");
       return;
     }
 
-    // Check if already requested
     final existingRequest = await FirebaseFirestore.instance
         .collection('ride_requests')
         .where('rideId', isEqualTo: widget.rideId)
@@ -54,16 +72,14 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     setState(() => _isRequesting = true);
 
     try {
-      // Get passenger's full profile info
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
-      
+
       final userProfile = userDoc.data() ?? {};
       final passengerPhone = userProfile['phone'] ?? '';
 
-      // Create ride request
       await FirebaseFirestore.instance.collection('ride_requests').add({
         'rideId': widget.rideId,
         'passengerId': user.uid,
@@ -78,20 +94,17 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
         'date': widget.rideData['date'],
         'time': widget.rideData['time'],
         'price': widget.rideData['price'],
-        'seats': 1, // Default: requesting 1 seat
+        'seats': 1,
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       setState(() => _isRequesting = false);
 
-      // Navigate to confirmation screen
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => const RequestConfirmationScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const RequestConfirmationScreen()),
         );
       }
     } catch (e) {
@@ -104,58 +117,42 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _finishRide() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    // Check if user is a passenger on this ride
-    final requestSnapshot = await FirebaseFirestore.instance
-        .collection('ride_requests')
-        .where('rideId', isEqualTo: widget.rideId)
-        .where('passengerId', isEqualTo: user.uid)
-        .where('status', isEqualTo: 'accepted')
-        .get();
-
-    if (requestSnapshot.docs.isNotEmpty) {
-      // User is a passenger, rate the driver
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => RatingScreen(
-              rideId: widget.rideId,
-              isDriver: false,
-              usersToRate: [
-                {
-                  'userId': widget.rideData['driverId'],
-                  'name': widget.rideData['driverName'] ?? 'Driver',
-                }
-              ],
-            ),
-          ),
-        );
-      }
-    } else {
-      _showMessage('This ride is not accepted yet');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final driverName = widget.rideData['driverName'] ?? 'UniRide User';
-    final from = widget.rideData['from'] ?? 'Unknown';
-    final to = widget.rideData['to'] ?? 'Unknown';
-    final date = widget.rideData['date'] ?? 'N/A';
-    final time = widget.rideData['time'] ?? 'N/A';
-    final price = widget.rideData['price']?.toString() ?? '0.0';
-    final seats = widget.rideData['seatsAvailable']?.toString() ?? '0';
-    final distanceKm = widget.rideData['distanceKm']?.toStringAsFixed(1) ?? '?';
-    final durationMin = widget.rideData['durationMinutes']?.toString() ?? '?';
+    final data = widget.rideData;
+
+    final driverName = data['driverName'] ?? 'UniRide User';
+    final driverRating = data['driverRating']?.toString() ?? '—';
+
+    final carMake = data['vehicleMake'] ?? "Car";
+    final carModel = data['vehicleModel'] ?? "";
+    final carColor = data['vehicleColor'] ?? "";
+    final licensePlate = data['vehicleLicensePlate'] ?? "";
+
+    final from = data['from'] ?? 'Unknown';
+    final to = data['to'] ?? 'Unknown';
+    final date = data['date'] ?? 'N/A';
+    final time = data['time'] ?? 'N/A';
+    final price = data['price']?.toString() ?? '0.0';
+    final seats = data['seatsAvailable']?.toString() ?? '0';
+
+    final fromLat = data['fromLat'];
+    final fromLng = data['fromLng'];
+    final toLat = data['toLat'];
+    final toLng = data['toLng'];
+
+    final distanceKm = data['distanceKm']?.toStringAsFixed(1) ?? '?';
+    final durationMin = data['durationMinutes']?.toString() ?? '?';
+
+    LatLng? pickupPoint = (fromLat != null && fromLng != null)
+        ? LatLng(fromLat, fromLng)
+        : null;
+    LatLng? dropoffPoint = (toLat != null && toLng != null)
+        ? LatLng(toLat, toLng)
+        : null;
 
     return Scaffold(
       backgroundColor: kScreenTeal,
-
-      // ---------------- APP BAR ----------------
       appBar: AppBar(
         backgroundColor: kScreenTeal,
         elevation: 0,
@@ -169,45 +166,29 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
         centerTitle: true,
         title: const Text(
           "Ride Details",
-          style: TextStyle(
-            color: kUniRideTeal2,
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
+          style: TextStyle(color: kUniRideTeal2, fontWeight: FontWeight.bold),
         ),
       ),
 
-      // ---------------- BODY ----------------
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ---------------- DRIVER CARD ----------------
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
+              decoration: _cardDecor(),
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 26,
                     backgroundColor: kUniRideTeal2.withOpacity(0.15),
                     child: Text(
-                      driverName.isNotEmpty ? driverName[0].toUpperCase() : 'U',
+                      driverName[0].toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
                         color: kUniRideTeal2,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
                       ),
                     ),
                   ),
@@ -218,24 +199,16 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                       Text(
                         driverName,
                         style: const TextStyle(
-                          fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          fontSize: 16,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(
-                            Icons.star,
-                            size: 16,
-                            color: Colors.orange[300],
-                          ),
+                          Icon(Icons.star, size: 16, color: Colors.orange[300]),
                           const SizedBox(width: 4),
-                          Text(
-                            widget.rideData['driverRating']?.toString() ?? '4.5',
-                            style: const TextStyle(fontSize: 13, color: Colors.black54),
-                          ),
+                          Text(driverRating),
                         ],
                       ),
                     ],
@@ -246,41 +219,34 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
             const SizedBox(height: 16),
 
-            // ---------------- CAR CARD ----------------
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
+              decoration: _cardDecor(),
               child: Row(
                 children: [
                   Icon(Icons.directions_car, size: 30, color: kUniRideTeal2),
                   const SizedBox(width: 16),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Honda Civic - Blue",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "$carMake $carModel - $carColor",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        "License: ABC-1234",
-                        style: TextStyle(color: Colors.black54, fontSize: 13),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          "License: $licensePlate",
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -288,134 +254,83 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
             const SizedBox(height: 20),
 
-            // ---------------- ROUTE MAP PREVIEW ----------------
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: kUniRideTeal2.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Center(
+            if (pickupPoint != null && dropoffPoint != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: _cardDecor(),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       "Route Overview",
                       style: TextStyle(
                         color: kUniRideTeal2,
-                        fontSize: 15,
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 200,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: GoogleMap(
+                          onMapCreated: (c) {
+                            _mapController = c;
+                            _fitMap(pickupPoint, dropoffPoint);
+                          },
+                          initialCameraPosition: CameraPosition(
+                            target: pickupPoint,
+                            zoom: 12,
+                          ),
+                          markers: {
+                            Marker(
+                              markerId: const MarkerId("from"),
+                              position: pickupPoint,
+                            ),
+                            Marker(
+                              markerId: const MarkerId("to"),
+                              position: dropoffPoint,
+                            ),
+                          },
+                          polylines: {
+                            Polyline(
+                              polylineId: const PolylineId("route"),
+                              points: [pickupPoint, dropoffPoint],
+                              color: kUniRideTeal2,
+                              width: 4,
+                            ),
+                          },
+                          zoomControlsEnabled: false,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      "$distanceKm km - $durationMin mins",
-                      style: const TextStyle(color: Colors.black54, fontSize: 13),
+                      "$distanceKm km  •  ~$durationMin mins",
+                      style: const TextStyle(color: Colors.black54),
                     ),
                   ],
                 ),
               ),
-            ),
 
             const SizedBox(height: 25),
 
-            // ---------------- RIDE INFO TITLE ----------------
             const Text(
               "Ride Information",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: Colors.black87,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 12),
 
-            // ---------------- RIDE INFO DETAILS ----------------
-            _rideInfoRow("Pickup", from),
-            _rideInfoRow("Destination", to),
-            _rideInfoRow("Date", date),
-            _rideInfoRow("Time", time),
-            _rideInfoRow("Seats Available", seats),
-            _rideInfoRow("Price", "BD $price"),
+            _info("Pickup", from),
+            _info("Destination", to),
+            _info("Date", date),
+            _info("Time", time),
+            _info("Seats Available", seats),
+            _info("Price", "BD $price"),
 
             const SizedBox(height: 30),
 
-            // ---------------- ACTION BUTTON ----------------
-            FutureBuilder<QuerySnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('ride_requests')
-                  .where('rideId', isEqualTo: widget.rideId)
-                  .where('passengerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid ?? '')
-                  .get(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[300],
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                final hasRequest = snapshot.data?.docs.isNotEmpty ?? false;
-                final requestStatus = hasRequest
-                    ? snapshot.data!.docs.first['status'] as String?
-                    : null;
-                final isAccepted = requestStatus == 'accepted';
-
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: isAccepted
-                        ? _finishRide
-                        : (_isRequesting ? null : _requestToJoinRide),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kUniRideYellow,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 2,
-                      disabledBackgroundColor: Colors.grey[300],
-                    ),
-                    child: _isRequesting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.black87,
-                            ),
-                          )
-                        : Text(
-                            isAccepted ? "Finish Ride" : "Request to Join Ride",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                  ),
-                );
-              },
-            ),
-
+            _actionBtn(),
             const SizedBox(height: 30),
           ],
         ),
@@ -423,27 +338,93 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     );
   }
 
-  // ---------------- REUSABLE INFO ROW ----------------
-  Widget _rideInfoRow(String label, String value) {
+  BoxDecoration _cardDecor() => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.1),
+        blurRadius: 6,
+        offset: const Offset(0, 3),
+      ),
+    ],
+  );
+
+  Widget _info(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(color: Colors.black54, fontSize: 15),
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.black54, fontSize: 15),
+            ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: Text(
+              value,
+              softWrap: true,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _actionBtn() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('ride_requests')
+          .where('rideId', isEqualTo: widget.rideId)
+          .where('passengerId', isEqualTo: user?.uid ?? '')
+          .get(),
+      builder: (context, snapshot) {
+        final hasRequest = snapshot.data?.docs.isNotEmpty ?? false;
+        final status = hasRequest
+            ? snapshot.data!.docs.first['status'] as String?
+            : null;
+
+        final accepted = status == "accepted";
+
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: accepted
+                ? () {}
+                : (_isRequesting ? null : _requestToJoinRide),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kUniRideYellow,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: _isRequesting
+                ? const CircularProgressIndicator(
+                    color: Colors.black87,
+                    strokeWidth: 2,
+                  )
+                : Text(
+                    accepted ? "Finish Ride" : "Request to Join Ride",
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+        );
+      },
     );
   }
 }

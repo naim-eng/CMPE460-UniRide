@@ -18,7 +18,8 @@ class DriverRideDetailsScreen extends StatefulWidget {
   });
 
   @override
-  State<DriverRideDetailsScreen> createState() => _DriverRideDetailsScreenState();
+  State<DriverRideDetailsScreen> createState() =>
+      _DriverRideDetailsScreenState();
 }
 
 class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
@@ -41,30 +42,26 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
 
       setState(() {
         acceptedPassengers = snapshot.docs
-            .map((doc) => {
-                  'requestId': doc.id,
-                  ...doc.data(),
-                })
+            .map((doc) => {'requestId': doc.id, ...doc.data()})
             .toList();
         isLoading = false;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading passengers: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading passengers: $e')));
       setState(() => isLoading = false);
     }
   }
 
   Future<void> _endRide() async {
     if (acceptedPassengers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No passengers to rate')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No passengers to rate')));
       return;
     }
 
-    // Extract passenger info for rating
     final usersToRate = acceptedPassengers.map((passenger) {
       return {
         'userId': passenger['passengerId'],
@@ -87,7 +84,6 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
   }
 
   Future<void> _cancelRide() async {
-    // Show confirmation dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -105,7 +101,10 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
               Navigator.pop(context);
               await _performCancelRide();
             },
-            child: const Text('Cancel Ride', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'Cancel Ride',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -114,7 +113,6 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
 
   Future<void> _performCancelRide() async {
     try {
-      // Update ride status to cancelled
       await FirebaseFirestore.instance
           .collection('rides')
           .doc(widget.rideId)
@@ -130,16 +128,16 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
             backgroundColor: Colors.orange,
           ),
         );
-        // Navigate back after a short delay
+
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) Navigator.pop(context);
         });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cancelling ride: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error cancelling ride: $e')));
       }
     }
   }
@@ -152,7 +150,11 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
     final time = widget.rideData['time'] ?? 'N/A';
     final price = (widget.rideData['price'] ?? 0).toString();
     final seatsValue = widget.rideData['seats'] ?? 0;
-    final totalSeatsNum = seatsValue is int ? seatsValue : (seatsValue is double ? seatsValue.toInt() : int.tryParse(seatsValue.toString()) ?? 0);
+    final totalSeatsNum = seatsValue is int
+        ? seatsValue
+        : (seatsValue is double
+              ? seatsValue.toInt()
+              : int.tryParse(seatsValue.toString()) ?? 0);
     final distanceKm = widget.rideData['distanceKm']?.toStringAsFixed(1) ?? '?';
     final durationMinutes = widget.rideData['durationMinutes'] ?? '?';
 
@@ -162,7 +164,10 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
         backgroundColor: kScreenTeal,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kUniRideTeal2),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: kUniRideTeal2,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
@@ -176,9 +181,7 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
         ),
       ),
       body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: kUniRideTeal2),
-            )
+          ? const Center(child: CircularProgressIndicator(color: kUniRideTeal2))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -253,18 +256,26 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
                         ),
                         const SizedBox(height: 12),
                         _rideInfoRow("Total Seats", totalSeatsNum.toString()),
-                        _rideInfoRow("Booked Seats", "${acceptedPassengers.length}"),
-                        _rideInfoRow("Available Seats", "${totalSeatsNum - acceptedPassengers.length}"),
+                        _rideInfoRow(
+                          "Booked Seats",
+                          "${acceptedPassengers.length}",
+                        ),
+                        _rideInfoRow(
+                          "Available Seats",
+                          "${totalSeatsNum - acceptedPassengers.length}",
+                        ),
                         const Divider(height: 20),
                         _rideInfoRow("Price per Seat", "BD $price"),
-                        _rideInfoRow("Total Earnings", "BD ${(double.parse(price) * acceptedPassengers.length).toStringAsFixed(2)}"),
+                        _rideInfoRow(
+                          "Total Earnings",
+                          "BD ${(double.parse(price) * acceptedPassengers.length).toStringAsFixed(2)}",
+                        ),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 20),
 
-                  // Passengers Section
                   const Text(
                     "Booked Passengers",
                     style: TextStyle(
@@ -310,13 +321,13 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Action Buttons (End Ride / Cancel Ride)
                   Row(
                     children: [
-                      // End Ride Button
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: acceptedPassengers.isEmpty ? null : _endRide,
+                          onPressed: acceptedPassengers.isEmpty
+                              ? null
+                              : _endRide,
                           icon: const Icon(Icons.flag, size: 20),
                           label: const Text("End Ride"),
                           style: ElevatedButton.styleFrom(
@@ -332,7 +343,6 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // Cancel Ride Button
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _cancelRide,
@@ -358,22 +368,32 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
     );
   }
 
+  /// 🔥 FIXED HERE — NOW TEXT WRAPS AND NEVER OVERFLOWS
   Widget _rideInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(color: Colors.black54, fontSize: 14),
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.black54, fontSize: 14),
+            ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+
+          /// 🔥 This Expanded makes the text wrap safely
+          Expanded(
+            child: Text(
+              value,
+              softWrap: true,
+              overflow: TextOverflow.visible,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -431,10 +451,7 @@ class _DriverRideDetailsScreenState extends State<DriverRideDetailsScreen> {
                 const SizedBox(height: 4),
                 Text(
                   email,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.black54,
-                  ),
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
