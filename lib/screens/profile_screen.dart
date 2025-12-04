@@ -8,9 +8,11 @@ import 'my_requests_screen.dart';
 import 'vehicles_screen.dart';
 import 'package:uniride_app/services/rating_service.dart';
 
+// COLORS (matching Home)
 const Color kScreenTeal = Color(0xFFE0F9FB);
-const Color kUniRideTeal1 = Color(0xFF00BCC9);
 const Color kUniRideTeal2 = Color(0xFF009DAE);
+const Color kUniRideTeal1 = Color(0xFF00BCC9);
+const Color kUniRideYellow = Color(0xFFFFC727);
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -38,7 +40,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final doc = await _firestore.collection('users').doc(user.uid).get();
 
     if (!doc.exists) {
-      // Fallback to auth data only
       return {
         "uid": user.uid,
         "name": user.displayName ?? "UniRide user",
@@ -48,41 +49,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
       };
     }
 
-    final data = doc.data() as Map<String, dynamic>;
-    data["uid"] = data["uid"] ?? user.uid;
+    final data = doc.data()!;
+    data["uid"] = user.uid;
     return data;
   }
 
   void _logout() async {
     await _auth.signOut();
     if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    Navigator.pushNamedAndRemoveUntil(context, '/', (r) => false);
   }
 
   void _editProfile(String currentName, String currentPhone) async {
     final nameController = TextEditingController(text: currentName);
-    final phoneController = TextEditingController(text: currentPhone == 'Not set' ? '' : currentPhone);
+    final phoneController = TextEditingController(
+      text: currentPhone == "Not set" ? "" : currentPhone,
+    );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Edit Profile"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: "Name",
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             TextField(
               controller: phoneController,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: "Phone Number",
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               keyboardType: TextInputType.phone,
             ),
@@ -91,51 +103,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text("Cancel"),
           ),
           ElevatedButton(
             onPressed: () async {
               final user = _auth.currentUser;
               if (user != null) {
-                try {
-                  // Update Firebase Auth display name
-                  await user.updateDisplayName(nameController.text);
-                  
-                  // Update Firestore user document
-                  await _firestore.collection('users').doc(user.uid).set({
-                    'name': nameController.text,
-                    'phone': phoneController.text,
-                    'email': user.email,
-                    'uid': user.uid,
-                    'updatedAt': FieldValue.serverTimestamp(),
-                  }, SetOptions(merge: true));
+                await user.updateDisplayName(nameController.text);
 
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Profile updated successfully')),
-                    );
-                    // Refresh profile
-                    setState(() {
-                      _profileFuture = _loadProfile();
-                    });
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error updating profile: $e')),
-                    );
-                  }
-                }
+                await _firestore.collection('users').doc(user.uid).set({
+                  "name": nameController.text,
+                  "phone": phoneController.text,
+                  "email": user.email,
+                  "uid": user.uid,
+                  "updatedAt": FieldValue.serverTimestamp(),
+                }, SetOptions(merge: true));
+
+                if (!mounted) return;
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Profile updated")),
+                );
+
+                setState(() => _profileFuture = _loadProfile());
               }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: kUniRideTeal2,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text(
-              'Save',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text("Save"),
           ),
         ],
       ),
@@ -147,88 +148,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: kScreenTeal,
       appBar: AppBar(
-        backgroundColor: kScreenTeal,
-        elevation: 0,
         title: const Text(
           "Profile",
           style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.w600,
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: kUniRideTeal2,
           ),
         ),
         centerTitle: true,
+        elevation: 0,
+        backgroundColor: kScreenTeal,
       ),
       bottomNavigationBar: const BottomNav(currentIndex: 3),
       body: FutureBuilder<Map<String, dynamic>?>(
         future: _profileFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(
               child: CircularProgressIndicator(color: kUniRideTeal2),
             );
           }
 
-          if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(
-              child: Text("No profile data found."),
-            );
-          }
-
           final data = snapshot.data!;
-          final String name = (data["name"] ?? "UniRide user").toString();
-          final String email = (data["email"] ?? "").toString();
-          final String phoneRaw = (data["phone"] ?? "").toString();
-          final String phone =
-              phoneRaw.trim().isEmpty ? "Not set" : phoneRaw.trim();
-          final String uid = (data["uid"] ?? "").toString();
-          final String role =
-              (data["role"] ?? "Student rider & driver").toString();
+          final name = data["name"] ?? "UniRide User";
+          final email = data["email"] ?? "";
+          final phone = (data["phone"] ?? "").isEmpty
+              ? "Not set"
+              : data["phone"];
+          final role = data["role"] ?? "Student rider & driver";
 
           String memberSince = "Not available";
-          final createdAt = data["createdAt"];
-          if (createdAt is Timestamp) {
-            final dt = createdAt.toDate();
-            memberSince =
-                "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
+          if (data["createdAt"] is Timestamp) {
+            final dt = (data["createdAt"] as Timestamp).toDate();
+            memberSince = "${dt.day}/${dt.month}/${dt.year}";
           }
 
-          final String initials =
-              name.trim().isEmpty ? "U" : name.trim()[0].toUpperCase();
-
-          // Placeholder stats (wire to real analytics later)
-          final int totalRides = 0;
+          final initials = name.isNotEmpty ? name[0].toUpperCase() : "U";
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             child: Column(
               children: [
-                // Top card with avatar and basic info
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 24,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    gradient: const LinearGradient(
-                      colors: [kUniRideTeal1, kUniRideTeal2],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+                // HEADER CARD
+                _WhiteCard(
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 32,
-                        backgroundColor: Colors.white,
+                        backgroundColor: kUniRideTeal1.withOpacity(0.15),
                         child: Text(
                           initials,
                           style: const TextStyle(
@@ -245,22 +213,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Text(
                               name,
-                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               email,
-                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: Colors.white70,
                                 fontSize: 13,
+                                color: Colors.black54,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -268,15 +233,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 const Icon(
                                   Icons.verified_user,
-                                  color: Colors.white,
                                   size: 16,
+                                  color: kUniRideTeal2,
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 5),
                                 Text(
                                   role,
                                   style: const TextStyle(
-                                    color: Colors.white,
                                     fontSize: 13,
+                                    color: Colors.black87,
                                   ),
                                 ),
                               ],
@@ -284,48 +249,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () => _editProfile(name, phone),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.edit,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
+                      IconButton(
+                        onPressed: () => _editProfile(name, phone),
+                        icon: const Icon(Icons.edit, color: kUniRideTeal2),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Stats row
+                // STATS
                 Row(
                   children: [
                     Expanded(
                       child: _StatCard(
-                        label: "Total rides",
-                        value: totalRides.toString(),
                         icon: Icons.directions_car,
+                        label: "Total rides",
+                        value: "0",
+                        iconColor: kUniRideTeal2,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: FutureBuilder<String>(
-                        future: RatingService.getRatingDisplay(uid),
-                        builder: (context, snapshot) {
-                          final ratingDisplay = snapshot.data ?? "No ratings yet";
+                        future: RatingService.getRatingDisplay(data["uid"]),
+                        builder: (context, snap) {
                           return _StatCard(
-                            label: "Rating",
-                            value: ratingDisplay,
                             icon: Icons.star,
+                            label: "Rating",
+                            value: snap.data ?? "—",
+                            iconColor: kUniRideYellow, // Yellow accent!
                           );
                         },
                       ),
@@ -333,23 +287,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Account details
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+                // ACCOUNT DETAILS
+                _WhiteCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -360,19 +301,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       _DetailRow(
                         icon: Icons.phone,
                         label: "Phone",
                         value: phone,
                       ),
-                      const SizedBox(height: 8),
-                      _DetailRow(
-                        icon: Icons.badge,
-                        label: "UID",
-                        value: uid,
-                      ),
-                      const SizedBox(height: 8),
                       _DetailRow(
                         icon: Icons.calendar_today,
                         label: "Member since",
@@ -382,94 +316,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
-                // Links for future screens (history, messages, etc.)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+                // LINKS
+                _WhiteCard(
                   child: Column(
                     children: [
                       _LinkTile(
                         icon: Icons.group_add,
                         label: "Ride requests",
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const MyRequestsScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MyRequestsScreen(),
+                          ),
+                        ),
                       ),
-                      const Divider(height: 0),
+                      const Divider(),
                       _LinkTile(
                         icon: Icons.directions_car,
-                        label: "My Rides",
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const RidesScreen(),
-                            ),
-                          );
-                        },
+                        label: "My rides",
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RidesScreen(),
+                          ),
+                        ),
                       ),
-                      const Divider(height: 0),
+                      const Divider(),
                       _LinkTile(
                         icon: Icons.garage,
                         label: "Vehicles",
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const VehiclesScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const VehiclesScreen(),
+                          ),
+                        ),
                       ),
-                      const Divider(height: 0),
+                      const Divider(),
                       _LinkTile(
                         icon: Icons.chat_bubble_outline,
                         label: "Messages",
-                        onTap: () {
-                          // TODO: Navigate to ChatsScreen
-                        },
+                        onTap: () {},
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 30),
 
+                // LOGOUT
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
+                  child: ElevatedButton(
                     onPressed: _logout,
-                    icon: const Icon(Icons.logout),
-                    label: const Text(
-                      "Log out",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kUniRideTeal2,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      elevation: 5,
+                    ),
+                    child: const Text(
+                      "Log out",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 18,
                       ),
                     ),
                   ),
@@ -483,59 +398,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
+// =============== REUSABLES ==================
 
-  const _StatCard({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+class _WhiteCard extends StatelessWidget {
+  final Widget child;
+  const _WhiteCard({required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+            color: Colors.black12,
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
+      child: child,
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color iconColor;
+
+  const _StatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _WhiteCard(
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: const Color(0xFFE0F9FB),
-            child: const Icon(
-              Icons.person_outline,
-              size: 20,
-              color: kUniRideTeal2,
-            ),
-          ),
-          const SizedBox(width: 10),
+          Icon(icon, color: iconColor, size: 26),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.black54,
-                  ),
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -556,7 +478,6 @@ class _DetailRow extends StatelessWidget {
   final String value;
 
   const _DetailRow({
-    super.key,
     required this.icon,
     required this.label,
     required this.value,
@@ -564,34 +485,26 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 18,
-          color: Colors.black54,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          "$label:",
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, color: kUniRideTeal2, size: 20),
+          const SizedBox(width: 10),
+          Text(
+            "$label:",
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
           ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.black87,
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -602,7 +515,6 @@ class _LinkTile extends StatelessWidget {
   final VoidCallback onTap;
 
   const _LinkTile({
-    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
@@ -612,21 +524,12 @@ class _LinkTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        icon,
-        color: kUniRideTeal2,
-      ),
+      leading: Icon(icon, color: kUniRideTeal2, size: 26),
       title: Text(
         label,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        color: Colors.black38,
-      ),
+      trailing: const Icon(Icons.chevron_right, color: Colors.black38),
       onTap: onTap,
     );
   }
