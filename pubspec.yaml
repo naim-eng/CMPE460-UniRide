@@ -12,7 +12,7 @@ dependencies:
     sdk: flutter
 
   # OpenStreetMap
-  flutter_map: ^7.0.0
+  flutter_map: ^8.2.2
   latlong2: ^0.9.0
 
   # Firebase packages 
@@ -21,7 +21,7 @@ dependencies:
   cloud_firestore: ^6.1.0
 
   # Location package
-  geolocator: ^10.0.0
+  geolocator: ^14.0.2
 
   # Autocomplete / HTTP requests
   http: ^1.2.0
