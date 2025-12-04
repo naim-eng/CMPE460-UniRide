@@ -15,8 +15,8 @@
         <!-- GOOGLE MAPS API KEY -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDnfbRFk4BvmHZeD3d8yZ8kBCNpCYJQLL" />
-            <!-- ^ MAKE SURE YOUR KEY STARTS WITH AIza, NOT “AIAIza” -->
+            android:value="AIzaSyDnfbRFk4BvmHZeD3d8yZ8kBCNpCYJQLLI" />
+            <!-- ^ MAKE SURE YOUR KEY STARTS WITH AIza, NOT "AIAIza" -->
 
         <activity
             android:name=".MainActivity"

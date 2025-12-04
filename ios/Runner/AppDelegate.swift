@@ -12,7 +12,7 @@ import GoogleMaps   // add this import
   ) -> Bool {
 
     // Google Maps iOS API key
-    GMSServices.provideAPIKey("AIzaSyBMqafToF3BmXAtlHfeZcHmS5pOoqE-3Us")
+    GMSServices.provideAPIKey("AIzaSyDQEMseV8fWCEBiLMGal7slrGBY3ecJfO4")
 
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
