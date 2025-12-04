@@ -6,7 +6,9 @@ import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/offer_ride_screen.dart';
+import 'screens/find_ride_screen.dart';
 import 'screens/ride_details_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,9 +28,10 @@ class UniRideApp extends StatelessWidget {
       routes: {
         '/': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
+        '/find-ride': (context) => const FindRideScreen(),
         '/offer-ride': (context) => const OfferRideScreen(),
-        // ❌ Do NOT include FindRideScreen here (it requires a parameter)
         '/ride-details': (context) => const RideDetailsScreen(),
+        '/profile': (context) => const ProfileScreen(),
       },
 
       initialRoute: '/',

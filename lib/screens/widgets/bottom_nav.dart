@@ -16,6 +16,8 @@ class BottomNav extends StatelessWidget {
       elevation: 8,
 
       onTap: (index) {
+        if (index == currentIndex) return;
+
         switch (index) {
           case 0:
             Navigator.pushReplacementNamed(context, '/home');

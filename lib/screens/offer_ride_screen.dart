@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
-import 'package:latlong2/latlong.dart';
 
 import 'ride_published_screen.dart';
+import 'widgets/bottom_nav.dart';
 
 /// ------------ HELPER: FORMAT SHORT, CLEAN ADDRESS ------------
 String formatShortAddress(Map<String, dynamic> json) {
@@ -43,7 +44,6 @@ String formatShortAddress(Map<String, dynamic> json) {
     }
   }
 
-  // Fallback: trim display_name to first 3 components
   final display = (json['display_name'] ?? '') as String;
   if (display.isEmpty) return '';
   final segments = display.split(',').map((e) => e.trim()).toList();
@@ -77,27 +77,24 @@ class LocationSearchService {
   static const _searchBaseUrl = 'https://nominatim.openstreetmap.org/search';
   static const _reverseBaseUrl = 'https://nominatim.openstreetmap.org/reverse';
 
-  // Search by text (English only, limited to Bahrain + Khobar area)
+  // Search by text
   static Future<List<LocationSuggestion>> search(String query) async {
     if (query.trim().length < 3) return [];
 
     final normalized = query.toLowerCase().trim();
 
-    // Manual AUBH suggestion for reliability in the demo
     final List<LocationSuggestion> manual = [];
     if (normalized.contains('american university') ||
         normalized.contains('aubh')) {
       manual.add(
         LocationSuggestion(
           displayName: 'American University of Bahrain, Riffa, Bahrain',
-          // (approx) campus coordinates – you can tweak these
           lat: 26.10,
           lon: 50.56,
         ),
       );
     }
 
-    // Viewbox roughly around Bahrain + Al Khobar region (lon/lat)
     const viewbox = '49.8,26.8,50.8,25.5';
 
     final uri = Uri.parse(
@@ -128,7 +125,7 @@ class LocationSearchService {
     return [...manual, ...apiResults];
   }
 
-  // Reverse geocode LatLng → human readable address (English only)
+  // Reverse geocode LatLng → human readable address
   static Future<String?> reverse(LatLng point) async {
     final uri = Uri.parse(
       '$_reverseBaseUrl'
@@ -164,37 +161,35 @@ class OfferRideScreen extends StatefulWidget {
 }
 
 class _OfferRideScreenState extends State<OfferRideScreen> {
-  final _formKey = GlobalKey<FormState>();
-
-  final _fromController = TextEditingController();
-  final _toController = TextEditingController();
-  final _dateController = TextEditingController();
-  final _timeController = TextEditingController();
-  final _seatsController = TextEditingController();
-  final _priceController = TextEditingController();
+  final TextEditingController _fromController = TextEditingController();
+  final TextEditingController _toController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _timeController = TextEditingController();
+  final TextEditingController _seatsController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
 
   final FocusNode _fromFocusNode = FocusNode();
   final FocusNode _toFocusNode = FocusNode();
 
-  DateTime _selectedDate = DateTime.now();
-  TimeOfDay _selectedTime = TimeOfDay.now();
+  final _formKey = GlobalKey<FormState>();
 
-  // Autocomplete state
   Timer? _debounce;
   List<LocationSuggestion> _suggestions = [];
-  String? _activeLocationField; // 'from' or 'to'
   bool _isSearchingLocations = false;
+  String? _activeLocationField;
 
-  // Points for route
   LatLng? _fromPoint;
   LatLng? _toPoint;
   double? _distanceKm;
   int? _durationMinutes;
 
-  // UniRide colors
+  DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = TimeOfDay.now();
+
+  // Colors
+  static const Color kScreenTeal = Color(0xFFE0F9FB);
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
   static const Color kUniRideYellow = Color(0xFFFFC727);
-  static const Color kScreenTeal = Color(0xFFE0F9FB);
 
   @override
   void initState() {
@@ -237,9 +232,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  // ------------------------------------------------------------
-  // ROUTE INFO (DISTANCE + DURATION)
-  // ------------------------------------------------------------
+  // ---- ROUTE INFO ----
   void _updateRouteInfo() {
     if (_fromPoint == null || _toPoint == null) {
       setState(() {
@@ -249,21 +242,30 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
       return;
     }
 
-    final distance = Distance();
-    final km = distance.as(LengthUnit.Kilometer, _fromPoint!, _toPoint!);
-
-    // Simple assumption: ~45 km/h city driving
-    final minutes = (km / 45 * 60).round().clamp(1, 999);
+    // Simple distance calculation
+    final distance = _calculateDistance(_fromPoint!, _toPoint!);
+    final minutes = (distance / 45 * 60).round().clamp(1, 999);
 
     setState(() {
-      _distanceKm = km;
+      _distanceKm = distance;
       _durationMinutes = minutes;
     });
   }
 
-  // ------------------------------------------------------------
-  // LOCATION PERMISSION + CURRENT LOCATION
-  // ------------------------------------------------------------
+  // Simple distance calculation using Haversine
+  double _calculateDistance(LatLng p1, LatLng p2) {
+    const R = 6371; // Earth's radius in km
+    final dLat = _toRad(p2.latitude - p1.latitude);
+    final dLon = _toRad(p2.longitude - p1.longitude);
+    final a = (sin(dLat / 2) * sin(dLat / 2)) +
+        (cos(_toRad(p1.latitude)) * cos(_toRad(p2.latitude)) * sin(dLon / 2) * sin(dLon / 2));
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
+  }
+
+  double _toRad(double degree) => degree * (3.14159265359 / 180);
+
+  // ---- LOCATION PERMISSION ----
   Future<LatLng?> _getCurrentLocation() async {
     bool enabled = await Geolocator.isLocationServiceEnabled();
     if (!enabled) {
@@ -291,9 +293,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     return LatLng(pos.latitude, pos.longitude);
   }
 
-  // ------------------------------------------------------------
-  // AUTOCOMPLETE HANDLING
-  // ------------------------------------------------------------
+  // ---- AUTOCOMPLETE ----
   void _onLocationChanged(String fieldId, String value) {
     setState(() {
       _activeLocationField = fieldId;
@@ -337,21 +337,18 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     FocusScope.of(context).unfocus();
   }
 
-  // ------------------------------------------------------------
-  // MAP PICKER (BOTTOM SHEET)
-  // ------------------------------------------------------------
+  // ---- MAP PICKER ----
   Future<void> _openMapPicker(
     TextEditingController controller, {
     required String fieldId,
   }) async {
     LatLng? selectedPoint;
 
-    // Always try to center on user first for better UX
-    LatLng initialCenter = const LatLng(26.0667, 50.5577); // Bahrain default
+    LatLng initialCenter = const LatLng(26.0667, 50.5577);
     final current = await _getCurrentLocation();
     if (current != null) {
       initialCenter = current;
-      selectedPoint = current; // pin on current location by default
+      selectedPoint = current;
     }
 
     await showModalBottomSheet(
@@ -362,46 +359,31 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) {
-        final mapController = MapController();
-
         return StatefulBuilder(
           builder: (context, setStateSheet) {
             return SizedBox(
               height: MediaQuery.of(context).size.height * 0.85,
               child: Stack(
                 children: [
-                  FlutterMap(
-                    mapController: mapController,
-                    options: MapOptions(
-                      initialCenter: initialCenter,
-                      initialZoom: 13,
-                      onTap: (_, point) {
-                        setStateSheet(() {
-                          selectedPoint = point;
-                        });
-                      },
+                  GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: initialCenter,
+                      zoom: 13,
                     ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                        subdomains: const ['a', 'b', 'c', 'd'],
-                        userAgentPackageName: 'com.example.uniride_app',
-                      ),
-                      if (selectedPoint != null)
-                        MarkerLayer(
-                          markers: [
+                    markers: selectedPoint != null
+                        ? {
                             Marker(
-                              point: selectedPoint!,
-                              child: const Icon(
-                                Icons.location_pin,
-                                color: Colors.red,
-                                size: 40,
-                              ),
+                              markerId: const MarkerId('selected'),
+                              position: selectedPoint!,
+                              infoWindow: const InfoWindow(title: 'Selected'),
                             ),
-                          ],
-                        ),
-                    ],
+                          }
+                        : {},
+                    onTap: (LatLng point) {
+                      setStateSheet(() {
+                        selectedPoint = point;
+                      });
+                    },
                   ),
                   Positioned(
                     bottom: 20,
@@ -420,8 +402,8 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                           : () async {
                               final address =
                                   await LocationSearchService.reverse(
-                                    selectedPoint!,
-                                  );
+                                selectedPoint!,
+                              );
 
                               setState(() {
                                 controller.text =
@@ -457,9 +439,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
-  // ------------------------------------------------------------
-  // DATE PICKER
-  // ------------------------------------------------------------
+  // ---- DATE PICKER ----
   void _openCalendar() {
     showModalBottomSheet(
       context: context,
@@ -511,9 +491,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
-  // ------------------------------------------------------------
-  // TIME PICKER (AM/PM)
-  // ------------------------------------------------------------
+  // ---- TIME PICKER ----
   void _openTimePicker() {
     final hours = List.generate(12, (i) => i + 1);
     final minutes = List.generate(60, (i) => i.toString().padLeft(2, "0"));
@@ -632,9 +610,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
-  // ------------------------------------------------------------
-  // AUTOCOMPLETE LIST UI
-  // ------------------------------------------------------------
+  // ---- AUTOCOMPLETE LIST ----
   Widget _buildLocationSuggestions() {
     if (_suggestions.isEmpty || _activeLocationField == null) {
       return const SizedBox.shrink();
@@ -677,15 +653,11 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
-  // ------------------------------------------------------------
-  // ROUTE PREVIEW MAP (fit whole route)
-  // ------------------------------------------------------------
+  // ---- ROUTE PREVIEW MAP ----
   Widget _buildRoutePreview() {
     if (_fromPoint == null || _toPoint == null) {
       return const SizedBox.shrink();
     }
-
-    final bounds = LatLngBounds.fromPoints([_fromPoint!, _toPoint!]);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,58 +689,32 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: FlutterMap(
-              options: MapOptions(
-                initialCameraFit: CameraFit.bounds(
-                  bounds: bounds,
-                  padding: const EdgeInsets.all(30),
-                ),
-                interactionOptions: const InteractionOptions(
-                  flags:
-                      InteractiveFlag.pinchZoom |
-                      InteractiveFlag.drag |
-                      InteractiveFlag.doubleTapZoom,
-                ),
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _fromPoint!,
+                zoom: 13,
               ),
-              children: [
-                TileLayer(
-                  urlTemplate:
-                      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                  subdomains: const ['a', 'b', 'c', 'd'],
-                  userAgentPackageName: 'com.example.uniride_app',
+              markers: {
+                Marker(
+                  markerId: const MarkerId('from'),
+                  position: _fromPoint!,
+                  infoWindow: const InfoWindow(title: 'From'),
                 ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: [_fromPoint!, _toPoint!],
-                      strokeWidth: 4,
-                      color: kUniRideTeal2,
-                    ),
-                  ],
+                Marker(
+                  markerId: const MarkerId('to'),
+                  position: _toPoint!,
+                  infoWindow: const InfoWindow(title: 'To'),
                 ),
-                MarkerLayer(
-                  markers: [
-                    // From = blue dot (usually user's location)
-                    Marker(
-                      point: _fromPoint!,
-                      child: const Icon(
-                        Icons.circle,
-                        color: Colors.blue,
-                        size: 14,
-                      ),
-                    ),
-                    // To = red pin
-                    Marker(
-                      point: _toPoint!,
-                      child: const Icon(
-                        Icons.location_pin,
-                        color: Colors.red,
-                        size: 32,
-                      ),
-                    ),
-                  ],
+              },
+              polylines: {
+                Polyline(
+                  polylineId: const PolylineId('route'),
+                  points: [_fromPoint!, _toPoint!],
+                  color: kUniRideTeal2,
+                  width: 4,
                 ),
-              ],
+              },
+              zoomControlsEnabled: false,
             ),
           ),
         ),
@@ -777,9 +723,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
-  // ------------------------------------------------------------
-  // UI
-  // ------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -946,10 +889,10 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: BottomNav(currentIndex: 2),
     );
   }
 
-  // ---------- LOCATION FIELD (with text + map icon) ----------
   Widget _buildLocationField({
     required TextEditingController controller,
     required String label,
@@ -996,7 +939,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
-  // ---------- NON-LOCATION FIELD ----------
   Widget _buildField({
     required TextEditingController controller,
     required String label,

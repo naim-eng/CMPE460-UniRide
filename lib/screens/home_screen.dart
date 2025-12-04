@@ -1,10 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
 import 'offer_ride_screen.dart';
 import 'find_ride_screen.dart';
+import 'widgets/bottom_nav.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final MapController _mapController = MapController();
+  GoogleMapController? _mapController;
   LatLng _center = const LatLng(26.0667, 50.5577); // Default Bahrain location
   LatLng? _userLocation;
   LatLng? _selectedPoint;
@@ -28,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserLocation(); // Auto-center on startup (Option A)
+    _loadUserLocation(); // Auto-center on startup
   }
 
   // -----------------------
@@ -42,19 +45,46 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    Position pos = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
+    try {
+      // Get current position with timeout
+      Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () async {
+          // If timeout, try with lower accuracy
+          return await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.medium,
+          );
+        },
+      );
 
-    _userLocation = LatLng(pos.latitude, pos.longitude);
+      _userLocation = LatLng(pos.latitude, pos.longitude);
+      
+      print('User location loaded: ${pos.latitude}, ${pos.longitude}');
 
-    setState(() {
-      _center = _userLocation!;
-      _mapLoaded = true;
-    });
+      setState(() {
+        _center = _userLocation!;
+        _mapLoaded = true;
+      });
 
-    // Auto move map to the user's location
-    _mapController.move(_center, 14);
+      // Auto move map to the user's location
+      if (_mapController != null) {
+        _mapController!.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: _center,
+              zoom: 14,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error getting location: $e');
+      setState(() => _mapLoaded = true);
+      _showMessage("Could not get your location. Using default location.");
+    }
   }
 
   Future<bool> _handleLocationPermission(BuildContext context) async {
@@ -86,6 +116,53 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showMessage(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // -----------------------
+  // REVERSE GEOCODING
+  // -----------------------
+  Future<String?> _getAddressFromLatLng(LatLng position) async {
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse'
+        '?lat=${position.latitude}'
+        '&lon=${position.longitude}'
+        '&format=json'
+        '&addressdetails=1'
+        '&accept-language=en',
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'User-Agent': 'uniride_app/1.0 (student project; contact: example@uniride.app)',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final address = data['address'] as Map<String, dynamic>?;
+        
+        if (address != null) {
+          String? place = address['road'] ?? address['neighbourhood'] ?? address['suburb'];
+          String? city = address['city'] ?? address['town'] ?? address['village'];
+          
+          final parts = <String>[
+            if (place != null && place.isNotEmpty) place,
+            if (city != null && city.isNotEmpty) city,
+          ];
+          
+          if (parts.isNotEmpty) {
+            return parts.join(', ');
+          }
+        }
+        
+        return data['display_name'] as String?;
+      }
+    } catch (e) {
+      print('Error getting address: $e');
+    }
+    return null;
   }
 
   // -----------------------
@@ -121,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     BoxShadow(
                       color: Colors.black12,
                       blurRadius: 12,
-                      offset: Offset(0, 4),
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
@@ -138,55 +215,56 @@ class _HomeScreenState extends State<HomeScreen> {
                           width: double.infinity,
                           child: !_mapLoaded
                               ? const Center(child: CircularProgressIndicator())
-                              : FlutterMap(
-                                  mapController: _mapController,
-                                  options: MapOptions(
-                                    initialCenter: _center,
-                                    initialZoom: 13,
-                                    onTap: (_, point) {
-                                      setState(() {
-                                        _selectedPoint = point;
-                                      });
-                                    },
+                              : GoogleMap(
+                                  onMapCreated: (controller) {
+                                    _mapController = controller;
+                                    // Move camera to user location after map is created
+                                    if (_userLocation != null) {
+                                      controller.animateCamera(
+                                        CameraUpdate.newCameraPosition(
+                                          CameraPosition(
+                                            target: _userLocation!,
+                                            zoom: 14,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  initialCameraPosition: CameraPosition(
+                                    target: _center,
+                                    zoom: 13,
                                   ),
-                                  children: [
-                                    TileLayer(
-                                      urlTemplate:
-                                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                      userAgentPackageName:
-                                          'com.example.uniride_app',
-                                    ),
-
+                                  markers: {
                                     // USER LOCATION MARKER
                                     if (_userLocation != null)
-                                      MarkerLayer(
-                                        markers: [
-                                          Marker(
-                                            point: _userLocation!,
-                                            child: const Icon(
-                                              Icons.my_location,
-                                              size: 28,
-                                              color: Colors.blue,
-                                            ),
-                                          ),
-                                        ],
+                                      Marker(
+                                        markerId: const MarkerId('userLocation'),
+                                        position: _userLocation!,
+                                        infoWindow: const InfoWindow(
+                                          title: 'Your Location',
+                                        ),
+                                        icon: BitmapDescriptor.defaultMarkerWithHue(
+                                          BitmapDescriptor.hueBlue,
+                                        ),
                                       ),
-
                                     // PIN WHERE USER TAPS
                                     if (_selectedPoint != null)
-                                      MarkerLayer(
-                                        markers: [
-                                          Marker(
-                                            point: _selectedPoint!,
-                                            child: const Icon(
-                                              Icons.location_pin,
-                                              size: 40,
-                                              color: Colors.red,
-                                            ),
-                                          ),
-                                        ],
+                                      Marker(
+                                        markerId: const MarkerId('selectedPoint'),
+                                        position: _selectedPoint!,
+                                        infoWindow: const InfoWindow(
+                                          title: 'Selected Location',
+                                        ),
                                       ),
-                                  ],
+                                  },
+                                  onTap: (LatLng point) {
+                                    setState(() {
+                                      _selectedPoint = point;
+                                    });
+                                  },
+                                  zoomControlsEnabled: false,
+                                  myLocationButtonEnabled: false,
+                                  myLocationEnabled: true,
                                 ),
                         ),
 
@@ -202,8 +280,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.blue,
                             ),
                             onPressed: () {
-                              if (_userLocation != null) {
-                                _mapController.move(_userLocation!, 14);
+                              if (_userLocation != null && _mapController != null) {
+                                _mapController!.animateCamera(
+                                  CameraUpdate.newCameraPosition(
+                                    CameraPosition(
+                                      target: _userLocation!,
+                                      zoom: 14,
+                                    ),
+                                  ),
+                                );
                               } else {
                                 _showMessage("Location not available.");
                               }
@@ -273,10 +358,26 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    // If user selected a point on the map, get its address
+                    String? address;
+                    if (_selectedPoint != null) {
+                      try {
+                        address = await _getAddressFromLatLng(_selectedPoint!);
+                      } catch (e) {
+                        // Fallback to coordinates if reverse geocoding fails
+                        address = "${_selectedPoint!.latitude.toStringAsFixed(4)}, ${_selectedPoint!.longitude.toStringAsFixed(4)}";
+                      }
+                    }
+                    
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const FindRideScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => FindRideScreen(
+                          initialPickupLocation: _selectedPoint,
+                          initialPickupAddress: address,
+                        ),
+                      ),
                     );
                   },
                   style: OutlinedButton.styleFrom(
@@ -302,6 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: BottomNav(currentIndex: 0),
     );
   }
 }
