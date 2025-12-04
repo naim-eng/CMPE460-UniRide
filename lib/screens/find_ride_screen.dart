@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'ride_details_screen.dart';
 import 'widgets/bottom_nav.dart';
+import 'package:uniride_app/services/rating_service.dart';
 
 /// ------------ HELPER: FORMAT SHORT, CLEAN ADDRESS ------------
 String formatShortAddress(Map<String, dynamic> json) {
@@ -223,6 +226,27 @@ class _FindRideScreenState extends State<FindRideScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  // ---------------- DISTANCE CALCULATION FOR RADIUS FILTERING ---------------
+  double _calculateDistance(LatLng p1, LatLng p2) {
+    const R = 6371; // Earth's radius in km
+    final dLat = _toRad(p2.latitude - p1.latitude);
+    final dLon = _toRad(p2.longitude - p1.longitude);
+    final a = (sin(dLat / 2) * sin(dLat / 2)) +
+        (cos(_toRad(p1.latitude)) *
+            cos(_toRad(p2.latitude)) *
+            sin(dLon / 2) *
+            sin(dLon / 2));
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
+  }
+
+  double _toRad(double degree) => degree * (pi / 180);
+
+  bool _isWithinRadius(LatLng center, LatLng point) {
+    final distance = _calculateDistance(center, point);
+    return distance <= _searchRadiusKm;
+  }
+
   // ---------------- LOCATION PERMISSION + CURRENT LOCATION ---------------
   Future<LatLng?> _getCurrentLocation() async {
     bool enabled = await Geolocator.isLocationServiceEnabled();
@@ -314,6 +338,10 @@ class _FindRideScreenState extends State<FindRideScreen> {
                       target: initialCenter,
                       zoom: 13,
                     ),
+                    scrollGesturesEnabled: true,
+                    zoomGesturesEnabled: true,
+                    rotateGesturesEnabled: true,
+                    tiltGesturesEnabled: true,
                     markers: selectedPoint != null
                         ? {
                             Marker(
@@ -556,24 +584,6 @@ class _FindRideScreenState extends State<FindRideScreen> {
     return time.format(context);
   }
 
-  // ---------------- DISTANCE CALCULATION ----------------
-  double _calculateDistance(LatLng from, LatLng to) {
-    return Geolocator.distanceBetween(
-      from.latitude,
-      from.longitude,
-      to.latitude,
-      to.longitude,
-    ) / 1000; // Convert meters to kilometers
-  }
-
-  // Use this method to filter rides when loading from database
-  // Example: rides.where((ride) => _isWithinRadius(ride.pickupLocation)).toList()
-  bool _isWithinRadius(LatLng rideLocation) {
-    if (_pickupLocation == null) return true; // Show all if no pickup selected
-    final distance = _calculateDistance(_pickupLocation!, rideLocation);
-    return distance <= _searchRadiusKm;
-  }
-
   // ---------------- SUGGESTIONS LIST ----------------
   Widget _buildLocationSuggestions() {
     if (_suggestions.isEmpty) return const SizedBox.shrink();
@@ -746,24 +756,127 @@ class _FindRideScreenState extends State<FindRideScreen> {
               ),
               const SizedBox(height: 14),
 
-              _rideCard(
-                name: "Talal AlHamer",
-                rating: "4.8",
-                pickup: "AUBH Campus",
-                destination: "City Center",
-                time: "2:00 PM",
-                seats: "2 seats",
-                price: "BD 2.0",
-              ),
-              const SizedBox(height: 12),
-              _rideCard(
-                name: "Renad Ibrahim",
-                rating: "4.9",
-                pickup: "Manama",
-                destination: "Riffa",
-                time: "4:00 PM",
-                seats: "3 seats",
-                price: "BD 3.0",
+              // Real-time rides from Firebase
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('rides')
+                    .where('status', isEqualTo: 'active')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: CircularProgressIndicator(color: kUniRideTeal2),
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 60,
+                              color: Colors.black26,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "No rides available",
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Check back soon or offer a ride!",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black38,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Filter rides by location radius if pickup is set
+                  final allRides = snapshot.data!.docs;
+                  final filteredRides = _pickupLocation != null
+                      ? allRides.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final fromLat = data['fromLat'];
+                          final fromLng = data['fromLng'];
+                          
+                          if (fromLat == null || fromLng == null) return true;
+                          
+                          final rideLocation = LatLng(fromLat, fromLng);
+                          return _isWithinRadius(_pickupLocation!, rideLocation);
+                        }).toList()
+                      : allRides;
+
+                  if (filteredRides.isEmpty && _pickupLocation != null) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.location_off,
+                              size: 60,
+                              color: Colors.black26,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "No rides within ${_searchRadiusKm.toStringAsFixed(0)}km",
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Try searching from a different location",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black38,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: filteredRides.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final rideId = doc.id;
+                      
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _rideCard(
+                          rideId: rideId,
+                          name: data['driverName'] ?? 'UniRide User',
+                          pickup: data['from'] ?? 'Unknown',
+                          destination: data['to'] ?? 'Unknown',
+                          time: data['time'] ?? 'N/A',
+                          seats: '${data['seatsAvailable'] ?? 0} seats',
+                          price: 'BD ${data['price'] ?? '0.0'}',
+                          data: data,
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
               ),
               const SizedBox(height: 30),
             ],
@@ -859,19 +972,27 @@ class _FindRideScreenState extends State<FindRideScreen> {
 
   // -------- RIDE CARD --------
   Widget _rideCard({
+    required String rideId,
     required String name,
-    required String rating,
     required String pickup,
     required String destination,
     required String time,
     required String seats,
     required String price,
+    required Map<String, dynamic> data,
   }) {
+    final driverId = data['driverId'] ?? '';
+    
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const RideDetailsScreen()),
+          MaterialPageRoute(
+            builder: (_) => RideDetailsScreen(
+              rideId: rideId,
+              rideData: data,
+            ),
+          ),
         );
       },
       child: Container(
@@ -912,32 +1033,38 @@ class _FindRideScreenState extends State<FindRideScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade300,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              size: 16,
-                              color: Colors.white,
+                      FutureBuilder<double>(
+                        future: RatingService.getAverageRating(driverId),
+                        builder: (context, snapshot) {
+                          final rating = snapshot.data ?? 0.0;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
                             ),
-                            const SizedBox(width: 2),
-                            Text(
-                              rating,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            decoration: BoxDecoration(
+                              color: rating > 0 ? Colors.orange.shade300 : Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  rating > 0 ? rating.toStringAsFixed(1) : "—",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

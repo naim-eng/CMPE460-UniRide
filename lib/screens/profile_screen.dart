@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'widgets/bottom_nav.dart';
 import 'rides_screen.dart';
+import 'my_requests_screen.dart';
+import 'vehicles_screen.dart';
+import 'package:uniride_app/services/rating_service.dart';
 
 const Color kScreenTeal = Color(0xFFE0F9FB);
 const Color kUniRideTeal1 = Color(0xFF00BCC9);
@@ -54,6 +57,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _auth.signOut();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+  }
+
+  void _editProfile(String currentName, String currentPhone) async {
+    final nameController = TextEditingController(text: currentName);
+    final phoneController = TextEditingController(text: currentPhone == 'Not set' ? '' : currentPhone);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: phoneController,
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.phone,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final user = _auth.currentUser;
+              if (user != null) {
+                try {
+                  // Update Firebase Auth display name
+                  await user.updateDisplayName(nameController.text);
+                  
+                  // Update Firestore user document
+                  await _firestore.collection('users').doc(user.uid).set({
+                    'name': nameController.text,
+                    'phone': phoneController.text,
+                    'email': user.email,
+                    'uid': user.uid,
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  }, SetOptions(merge: true));
+
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Profile updated successfully')),
+                    );
+                    // Refresh profile
+                    setState(() {
+                      _profileFuture = _loadProfile();
+                    });
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error updating profile: $e')),
+                    );
+                  }
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kUniRideTeal2,
+            ),
+            child: const Text(
+              'Save',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -111,7 +197,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           // Placeholder stats (wire to real analytics later)
           final int totalRides = 0;
-          final double rating = 5.0;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -199,6 +284,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _editProfile(name, phone),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -217,10 +318,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _StatCard(
-                        label: "Rating",
-                        value: rating.toStringAsFixed(1),
-                        icon: Icons.star,
+                      child: FutureBuilder<double>(
+                        future: RatingService.getAverageRating(uid),
+                        builder: (context, snapshot) {
+                          final rating = snapshot.data ?? 0.0;
+                          return _StatCard(
+                            label: "Rating",
+                            value: rating > 0 ? rating.toStringAsFixed(1) : "—",
+                            icon: Icons.star,
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -298,7 +405,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.group_add,
                         label: "Ride requests",
                         onTap: () {
-                          // TODO: Navigate to RideRequestsScreen (where drivers see join requests)
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MyRequestsScreen(),
+                            ),
+                          );
                         },
                       ),
                       const Divider(height: 0),
@@ -310,6 +422,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => const RidesScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 0),
+                      _LinkTile(
+                        icon: Icons.garage,
+                        label: "Vehicles",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const VehiclesScreen(),
                             ),
                           );
                         },

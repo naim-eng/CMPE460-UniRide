@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:uniride_app/screens/my_offered_rides_screen.dart';
+import 'package:uniride_app/screens/rides_screen.dart';
 
 class RidePublishedScreen extends StatelessWidget {
   final String from;
@@ -156,7 +156,7 @@ class RidePublishedScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const MyOfferedRidesScreen(),
+                      builder: (_) => const RidesScreen(),
                     ),
                   );
                 },

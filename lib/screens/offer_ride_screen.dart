@@ -7,8 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'ride_published_screen.dart';
+import 'create_vehicle_screen.dart';
 import 'widgets/bottom_nav.dart';
 
 /// ------------ HELPER: FORMAT SHORT, CLEAN ADDRESS ------------
@@ -186,6 +189,10 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
 
+  // Vehicle selection
+  String? _selectedVehicleId;
+  Map<String, dynamic>? _selectedVehicleData;
+
   // Colors
   static const Color kScreenTeal = Color(0xFFE0F9FB);
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
@@ -230,6 +237,171 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
 
   void _showMessage(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // ---- VEHICLE SELECTION ----
+  void _openVehicleSelector() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showMessage("Please log in to select a vehicle");
+      return;
+    }
+
+    // Get user's vehicles
+    final vehiclesSnap = await FirebaseFirestore.instance
+        .collection('vehicles')
+        .where('userId', isEqualTo: user.uid)
+        .get();
+
+    if (!mounted) return;
+
+    if (vehiclesSnap.docs.isEmpty) {
+      // No vehicles, ask if user wants to create one
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No Vehicles Found'),
+          content: const Text('You haven\'t created any vehicles yet. Would you like to create one?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateVehicleScreen(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: kUniRideYellow),
+              child: const Text('Create Vehicle', style: TextStyle(color: Colors.black87)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Show vehicle selection dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Vehicle'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: vehiclesSnap.docs.length,
+            itemBuilder: (context, index) {
+              final doc = vehiclesSnap.docs[index];
+              final data = doc.data();
+              
+              return ListTile(
+                leading: const Icon(Icons.directions_car, color: kUniRideTeal2),
+                title: Text("${data['year']} ${data['make']} ${data['model']}"),
+                subtitle: Text("${data['color']} - ${data['licensePlate']}"),
+                onTap: () {
+                  setState(() {
+                    _selectedVehicleId = doc.id;
+                    _selectedVehicleData = data;
+                  });
+                  Navigator.pop(context);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---- PUBLISH RIDE TO FIREBASE ----
+  Future<void> _publishRide() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        _showMessage("Please log in to publish a ride");
+        return;
+      }
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: kUniRideYellow),
+        ),
+      );
+
+      // Get driver's full profile info
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      final userProfile = userDoc.data() ?? {};
+      final driverPhone = userProfile['phone'] ?? '';
+
+      // Create ride document
+      final rideData = {
+        'driverId': user.uid,
+        'driverName': user.displayName ?? 'UniRide User',
+        'driverEmail': user.email ?? '',
+        'driverPhone': driverPhone,
+        'from': _fromController.text,
+        'to': _toController.text,
+        'fromLat': _fromPoint?.latitude,
+        'fromLng': _fromPoint?.longitude,
+        'toLat': _toPoint?.latitude,
+        'toLng': _toPoint?.longitude,
+        'date': _dateController.text,
+        'time': _timeController.text,
+        'seats': int.tryParse(_seatsController.text) ?? 1,
+        'seatsAvailable': int.tryParse(_seatsController.text) ?? 1,
+        'price': double.tryParse(_priceController.text) ?? 0.0,
+        'distanceKm': _distanceKm,
+        'durationMinutes': _durationMinutes,
+        'status': 'active',
+        'createdAt': FieldValue.serverTimestamp(),
+        'passengers': [], // List of passenger IDs who joined
+        // Vehicle information
+        'vehicleId': _selectedVehicleId,
+        'vehicleMake': _selectedVehicleData?['make'],
+        'vehicleModel': _selectedVehicleData?['model'],
+        'vehicleYear': _selectedVehicleData?['year'],
+        'vehicleColor': _selectedVehicleData?['color'],
+        'vehicleLicensePlate': _selectedVehicleData?['licensePlate'],
+      };
+
+      await FirebaseFirestore.instance.collection('rides').add(rideData);
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Navigate to success screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RidePublishedScreen(
+              from: _fromController.text,
+              to: _toController.text,
+              date: _dateController.text,
+              time: _timeController.text,
+              price: _priceController.text,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+      _showMessage("Error publishing ride: $e");
+    }
   }
 
   // ---- ROUTE INFO ----
@@ -370,6 +542,10 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                       target: initialCenter,
                       zoom: 13,
                     ),
+                    scrollGesturesEnabled: true,
+                    zoomGesturesEnabled: true,
+                    rotateGesturesEnabled: true,
+                    tiltGesturesEnabled: true,
                     markers: selectedPoint != null
                         ? {
                             Marker(
@@ -844,23 +1020,41 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                         ],
                       ),
                       const SizedBox(height: 20),
+
+                      // Vehicle Selection
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
+                        child: ElevatedButton.icon(
+                          onPressed: _openVehicleSelector,
+                          icon: const Icon(Icons.directions_car),
+                          label: Text(
+                            _selectedVehicleData != null
+                                ? "${_selectedVehicleData!['year']} ${_selectedVehicleData!['make']} ${_selectedVehicleData!['model']}"
+                                : "Select Vehicle",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _selectedVehicleData != null ? kUniRideTeal2 : Colors.grey[400],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                          onPressed: () async {
                             if (_formKey.currentState!.validate()) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => RidePublishedScreen(
-                                    from: _fromController.text,
-                                    to: _toController.text,
-                                    date: _dateController.text,
-                                    time: _timeController.text,
-                                    price: _priceController.text,
-                                  ),
-                                ),
-                              );
+                              if (_selectedVehicleId == null) {
+                                _showMessage("Please select a vehicle");
+                                return;
+                              }
+                              await _publishRide();
                             }
                           },
                           style: ElevatedButton.styleFrom(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'rating_screen.dart';
+import 'driver_ride_details_screen.dart';
 
 const Color kScreenTeal = Color(0xFFE0F9FB);
 const Color kUniRideTeal2 = Color(0xFF009DAE);
@@ -86,7 +88,6 @@ class _RidesScreenState extends State<RidesScreen> with SingleTickerProviderStat
       stream: _firestore
           .collection('rides')
           .where('driverId', isEqualTo: user.uid)
-          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -134,7 +135,7 @@ class _RidesScreenState extends State<RidesScreen> with SingleTickerProviderStat
           itemCount: rides.length,
           itemBuilder: (context, index) {
             final ride = rides[index].data() as Map<String, dynamic>;
-            return _buildRideCard(ride, true);
+            return _buildRideCard(ride, true, rides[index].id);
           },
         );
       },
@@ -151,7 +152,6 @@ class _RidesScreenState extends State<RidesScreen> with SingleTickerProviderStat
       stream: _firestore
           .collection('ride_requests')
           .where('passengerId', isEqualTo: user.uid)
-          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -199,14 +199,14 @@ class _RidesScreenState extends State<RidesScreen> with SingleTickerProviderStat
           itemCount: requests.length,
           itemBuilder: (context, index) {
             final request = requests[index].data() as Map<String, dynamic>;
-            return _buildRideCard(request, false);
+            return _buildRideCard(request, false, requests[index].id);
           },
         );
       },
     );
   }
 
-  Widget _buildRideCard(Map<String, dynamic> data, bool isOffered) {
+  Widget _buildRideCard(Map<String, dynamic> data, bool isOffered, String rideId) {
     final from = data['from'] ?? 'Unknown';
     final to = data['to'] ?? 'Unknown';
     final date = data['date'] ?? 'N/A';
@@ -340,19 +340,63 @@ class _RidesScreenState extends State<RidesScreen> with SingleTickerProviderStat
                       color: kUniRideTeal2,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      // TODO: Navigate to ride details
-                    },
-                    child: const Text('View Details'),
-                  ),
+                  if (status == 'active')
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DriverRideDetailsScreen(
+                              rideId: rideId,
+                              rideData: data,
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text('View Details'),
+                    ),
                 ],
+              ),
+            ] else if (status == 'accepted') ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _finishRideAsPassenger(rideId, data['driverId'] ?? '', data['driverName'] ?? 'Driver'),
+                  icon: const Icon(Icons.flag, size: 18),
+                  label: const Text('Finish Ride'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kUniRideYellow,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
               ),
             ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _finishRideAsPassenger(String rideId, String driverId, String driverName) async {
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RatingScreen(
+            rideId: rideId,
+            isDriver: false,
+            usersToRate: [
+              {'userId': driverId, 'name': driverName}
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildInfoChip(IconData icon, String text) {
