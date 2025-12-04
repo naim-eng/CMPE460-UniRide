@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -79,16 +81,14 @@ class LocationSearchService {
   static const _searchBaseUrl = 'https://nominatim.openstreetmap.org/search';
   static const _reverseBaseUrl = 'https://nominatim.openstreetmap.org/reverse';
 
-  // Search by text
   static Future<List<LocationSuggestion>> search(String query) async {
     if (query.trim().length < 3) return [];
 
     final normalized = query.toLowerCase().trim();
     final List<LocationSuggestion> manual = [];
 
-    // Manual AUBH suggestion
-    if (normalized.contains('american university') ||
-        normalized.contains('aubh')) {
+    if (normalized.contains('aubh') ||
+        normalized.contains('american university')) {
       manual.add(
         LocationSuggestion(
           displayName: 'American University of Bahrain, Riffa, Bahrain',
@@ -120,12 +120,11 @@ class LocationSearchService {
     if (response.statusCode != 200) return manual;
 
     final List data = json.decode(response.body);
-    final apiResults = data.map((e) => LocationSuggestion.fromJson(e)).toList();
+    final mapped = data.map((e) => LocationSuggestion.fromJson(e)).toList();
 
-    return [...manual, ...apiResults];
+    return [...manual, ...mapped];
   }
 
-  // Reverse geocoding
   static Future<String?> reverse(LatLng point) async {
     final uri = Uri.parse(
       '$_reverseBaseUrl'
@@ -224,7 +223,6 @@ class _FindRideScreenState extends State<FindRideScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  // (continues in part 2…)
   // ---------------- DISTANCE CALCULATION ----------------
   double _toRad(double degree) => degree * (pi / 180);
 
@@ -279,7 +277,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
     FocusScope.of(context).unfocus();
   }
 
-  // ---------------- MAP PICKER ----------------
+  // ---------------- MAP PICKER (WITH FIX) ----------------
   Future<void> _openPickupMapPicker() async {
     LatLng? selectedPoint;
 
@@ -298,7 +296,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) {
+      builder: (sheetContext) {
         return StatefulBuilder(
           builder: (sheetContext, setStateSheet) {
             return SizedBox(
@@ -310,6 +308,14 @@ class _FindRideScreenState extends State<FindRideScreen> {
                       target: initialCenter,
                       zoom: 13,
                     ),
+
+                    // ⭐ FIX: Allow dragging/panning in bottom sheet
+                    gestureRecognizers: {
+                      Factory<OneSequenceGestureRecognizer>(
+                        () => EagerGestureRecognizer(),
+                      ),
+                    },
+
                     markers: selectedPoint != null
                         ? {
                             Marker(
@@ -318,6 +324,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                             ),
                           }
                         : {},
+
                     onTap: (LatLng point) {
                       setStateSheet(() => selectedPoint = point);
                     },
@@ -331,6 +338,9 @@ class _FindRideScreenState extends State<FindRideScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kUniRideTeal2,
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       onPressed: selectedPoint == null
                           ? null
@@ -344,7 +354,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                                 _pickupController.text =
                                     address ??
                                     "${selectedPoint!.latitude}, ${selectedPoint!.longitude}";
-                                _pickupLocation = selectedPoint!;
+                                _pickupLocation = selectedPoint;
                                 _suggestions = [];
                               });
 
@@ -355,6 +365,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -376,7 +387,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) {
+      builder: (sheetContext) {
         return Container(
           padding: const EdgeInsets.all(20),
           height: 400,
@@ -398,7 +409,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                   onDateChanged: (picked) {
                     _dateController.text =
                         "${picked.day}/${picked.month}/${picked.year}";
-                    Navigator.pop(context);
+                    Navigator.of(sheetContext).pop();
                   },
                 ),
               ),
@@ -409,7 +420,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
     );
   }
 
-  // ---------------- TIME PICKER (FIXED) ----------------
+  // ---------------- TIME PICKER (WITH FIX) ----------------
   void _openTimePicker({required bool isStart}) {
     final hours = List.generate(12, (i) => i + 1);
     final minutes = List.generate(60, (i) => i.toString().padLeft(2, "0"));
@@ -439,6 +450,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
               Expanded(
                 child: Row(
                   children: [
@@ -491,24 +503,22 @@ class _FindRideScreenState extends State<FindRideScreen> {
                     if (isStart) {
                       startTime = picked;
 
-                      // Clear invalid end time
                       if (endTime != null &&
                           !_isEndAfterStart(startTime!, endTime!)) {
                         endTime = null;
                       }
                     } else {
-                      // VALIDATE BEFORE TAKING END TIME
                       if (startTime != null &&
                           !_isEndAfterStart(startTime!, picked)) {
                         _showMessage("End time must be after the start time.");
-                        return; // ← DO NOT CLOSE SHEET
+                        return; // ⭐ DO NOT POP SCREEN
                       }
 
                       endTime = picked;
                     }
                   });
 
-                  Navigator.of(sheetContext).pop(); // only close sheet
+                  Navigator.of(sheetContext).pop(); // only close bottom sheet
                 },
                 child: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
@@ -530,7 +540,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
     return time.format(context);
   }
 
-  // ---------------- SUGGESTIONS LIST ----------------
+  // ---------------- UI WIDGETS + FIREBASE LISTENERS ----------------
   Widget _buildLocationSuggestions() {
     if (_suggestions.isEmpty) return const SizedBox.shrink();
 
@@ -565,11 +575,12 @@ class _FindRideScreenState extends State<FindRideScreen> {
     );
   }
 
-  // ---------------- UI BUILD ----------------
+  // ---------------- MAIN BUILD ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kScreenTeal,
+
       appBar: AppBar(
         backgroundColor: kScreenTeal,
         elevation: 0,
@@ -663,6 +674,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                       style: TextStyle(
                         color: kUniRideTeal2.withOpacity(0.7),
                         fontSize: 13,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                 ],
@@ -688,18 +700,30 @@ class _FindRideScreenState extends State<FindRideScreen> {
                     return const Center(
                       child: Padding(
                         padding: EdgeInsets.all(40),
-                        child: Text(
-                          "No rides available",
-                          style: TextStyle(fontSize: 16),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 60,
+                              color: Colors.black26,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              "No rides available",
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );
                   }
 
-                  final all = snapshot.data!.docs;
-
+                  final allRides = snapshot.data!.docs;
                   final filtered = _pickupLocation != null
-                      ? all.where((doc) {
+                      ? allRides.where((doc) {
                           final d = doc.data() as Map<String, dynamic>;
                           final lat = d['fromLat'];
                           final lng = d['fromLng'];
@@ -709,7 +733,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                             LatLng(lat, lng),
                           );
                         }).toList()
-                      : all;
+                      : allRides;
 
                   return Column(
                     children: filtered.map((doc) {
@@ -742,7 +766,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
     );
   }
 
-  // ---------------- INPUT FIELDS ----------------
+  // ---------------- INPUT WIDGETS ----------------
   Widget _pickupField() {
     return Container(
       decoration: BoxDecoration(
@@ -763,7 +787,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
             icon: const Icon(Icons.map_outlined, color: kUniRideTeal2),
             onPressed: _openPickupMapPicker,
           ),
-          hintText: "Pickup location (search or map)",
+          hintText: "Pickup location (search or pick on map)",
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 15),
         ),
