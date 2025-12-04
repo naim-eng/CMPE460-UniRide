@@ -8,9 +8,7 @@ class TestScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Post-login test'),
-      ),
+      appBar: AppBar(title: const Text('Post-login test')),
       body: const Center(
         child: Text(
           'Login worked and navigation is fine.',

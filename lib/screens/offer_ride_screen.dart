@@ -1,6 +1,160 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
+
 import 'ride_published_screen.dart';
+
+/// ------------ HELPER: FORMAT SHORT, CLEAN ADDRESS ------------
+String formatShortAddress(Map<String, dynamic> json) {
+  final address = json['address'] as Map<String, dynamic>?;
+
+  if (address != null) {
+    String? place =
+        address['road'] ??
+        address['pedestrian'] ??
+        address['footway'] ??
+        address['neighbourhood'] ??
+        address['suburb'] ??
+        address['hamlet'];
+
+    String? city =
+        address['city'] ??
+        address['town'] ??
+        address['village'] ??
+        address['municipality'] ??
+        address['county'];
+
+    String? country = address['country'];
+
+    final parts = <String>[
+      if (place != null && place.isNotEmpty) place,
+      if (city != null && city.isNotEmpty) city,
+      if (country != null && country.isNotEmpty) country,
+    ];
+
+    if (parts.isNotEmpty) {
+      return parts.join(', ');
+    }
+  }
+
+  // Fallback: trim display_name to first 3 components
+  final display = (json['display_name'] ?? '') as String;
+  if (display.isEmpty) return '';
+  final segments = display.split(',').map((e) => e.trim()).toList();
+  if (segments.length <= 3) return display;
+  return segments.sublist(0, 3).join(', ');
+}
+
+// ---------- MODEL FOR LOCATION SUGGESTIONS ----------
+class LocationSuggestion {
+  final String displayName;
+  final double lat;
+  final double lon;
+
+  LocationSuggestion({
+    required this.displayName,
+    required this.lat,
+    required this.lon,
+  });
+
+  factory LocationSuggestion.fromJson(Map<String, dynamic> json) {
+    return LocationSuggestion(
+      displayName: formatShortAddress(json),
+      lat: double.tryParse(json['lat'] ?? '0') ?? 0.0,
+      lon: double.tryParse(json['lon'] ?? '0') ?? 0.0,
+    );
+  }
+}
+
+// ---------- SERVICE FOR NOMINATIM SEARCH / REVERSE ----------
+class LocationSearchService {
+  static const _searchBaseUrl = 'https://nominatim.openstreetmap.org/search';
+  static const _reverseBaseUrl = 'https://nominatim.openstreetmap.org/reverse';
+
+  // Search by text (English only, limited to Bahrain + Khobar area)
+  static Future<List<LocationSuggestion>> search(String query) async {
+    if (query.trim().length < 3) return [];
+
+    final normalized = query.toLowerCase().trim();
+
+    // Manual AUBH suggestion for reliability in the demo
+    final List<LocationSuggestion> manual = [];
+    if (normalized.contains('american university') ||
+        normalized.contains('aubh')) {
+      manual.add(
+        LocationSuggestion(
+          displayName: 'American University of Bahrain, Riffa, Bahrain',
+          // (approx) campus coordinates – you can tweak these
+          lat: 26.10,
+          lon: 50.56,
+        ),
+      );
+    }
+
+    // Viewbox roughly around Bahrain + Al Khobar region (lon/lat)
+    const viewbox = '49.8,26.8,50.8,25.5';
+
+    final uri = Uri.parse(
+      '$_searchBaseUrl'
+      '?q=${Uri.encodeQueryComponent(query)}'
+      '&format=json'
+      '&addressdetails=1'
+      '&limit=5'
+      '&accept-language=en'
+      '&countrycodes=bh,sa'
+      '&viewbox=$viewbox'
+      '&bounded=1',
+    );
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'User-Agent':
+            'uniride_app/1.0 (student project; contact: example@uniride.app)',
+      },
+    );
+
+    if (response.statusCode != 200) return manual;
+
+    final List data = json.decode(response.body) as List;
+    final apiResults = data.map((e) => LocationSuggestion.fromJson(e)).toList();
+
+    return [...manual, ...apiResults];
+  }
+
+  // Reverse geocode LatLng → human readable address (English only)
+  static Future<String?> reverse(LatLng point) async {
+    final uri = Uri.parse(
+      '$_reverseBaseUrl'
+      '?lat=${point.latitude}'
+      '&lon=${point.longitude}'
+      '&format=json'
+      '&addressdetails=1'
+      '&accept-language=en',
+    );
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'User-Agent':
+            'uniride_app/1.0 (student project; contact: example@uniride.app)',
+      },
+    );
+
+    if (response.statusCode != 200) return null;
+
+    final data = json.decode(response.body) as Map<String, dynamic>;
+    final short = formatShortAddress(data);
+    if (short.isNotEmpty) return short;
+    return data['display_name'] as String?;
+  }
+}
 
 class OfferRideScreen extends StatefulWidget {
   const OfferRideScreen({super.key});
@@ -19,8 +173,51 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
   final _seatsController = TextEditingController();
   final _priceController = TextEditingController();
 
+  final FocusNode _fromFocusNode = FocusNode();
+  final FocusNode _toFocusNode = FocusNode();
+
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
+
+  // Autocomplete state
+  Timer? _debounce;
+  List<LocationSuggestion> _suggestions = [];
+  String? _activeLocationField; // 'from' or 'to'
+  bool _isSearchingLocations = false;
+
+  // Points for route
+  LatLng? _fromPoint;
+  LatLng? _toPoint;
+  double? _distanceKm;
+  int? _durationMinutes;
+
+  // UniRide colors
+  static const Color kUniRideTeal2 = Color(0xFF009DAE);
+  static const Color kUniRideYellow = Color(0xFFFFC727);
+  static const Color kScreenTeal = Color(0xFFE0F9FB);
+
+  @override
+  void initState() {
+    super.initState();
+
+    _fromFocusNode.addListener(() {
+      if (_fromFocusNode.hasFocus) {
+        setState(() => _activeLocationField = 'from');
+        if (_fromController.text.isNotEmpty) {
+          _onLocationChanged('from', _fromController.text);
+        }
+      }
+    });
+
+    _toFocusNode.addListener(() {
+      if (_toFocusNode.hasFocus) {
+        setState(() => _activeLocationField = 'to');
+        if (_toController.text.isNotEmpty) {
+          _onLocationChanged('to', _toController.text);
+        }
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -30,17 +227,239 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     _timeController.dispose();
     _seatsController.dispose();
     _priceController.dispose();
+    _fromFocusNode.dispose();
+    _toFocusNode.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
-  // UniRide colors
-  static const Color kUniRideTeal1 = Color(0xFF00BCC9);
-  static const Color kUniRideTeal2 = Color(0xFF009DAE);
-  static const Color kUniRideYellow = Color(0xFFFFC727);
+  void _showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
 
-  static const Color kScreenTeal = Color(0xFFE0F9FB);
+  // ------------------------------------------------------------
+  // ROUTE INFO (DISTANCE + DURATION)
+  // ------------------------------------------------------------
+  void _updateRouteInfo() {
+    if (_fromPoint == null || _toPoint == null) {
+      setState(() {
+        _distanceKm = null;
+        _durationMinutes = null;
+      });
+      return;
+    }
 
-  // --------------------- DATE PICKER (BLUE) ---------------------
+    final distance = Distance();
+    final km = distance.as(LengthUnit.Kilometer, _fromPoint!, _toPoint!);
+
+    // Simple assumption: ~45 km/h city driving
+    final minutes = (km / 45 * 60).round().clamp(1, 999);
+
+    setState(() {
+      _distanceKm = km;
+      _durationMinutes = minutes;
+    });
+  }
+
+  // ------------------------------------------------------------
+  // LOCATION PERMISSION + CURRENT LOCATION
+  // ------------------------------------------------------------
+  Future<LatLng?> _getCurrentLocation() async {
+    bool enabled = await Geolocator.isLocationServiceEnabled();
+    if (!enabled) {
+      _showMessage("Please enable location services.");
+      return null;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        _showMessage("UniRide works best with your location enabled.");
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      _showMessage("Location permission denied. Enable it in Settings.");
+      return null;
+    }
+
+    final pos = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+    return LatLng(pos.latitude, pos.longitude);
+  }
+
+  // ------------------------------------------------------------
+  // AUTOCOMPLETE HANDLING
+  // ------------------------------------------------------------
+  void _onLocationChanged(String fieldId, String value) {
+    setState(() {
+      _activeLocationField = fieldId;
+    });
+
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () async {
+      if (value.trim().length < 3) {
+        setState(() {
+          _suggestions = [];
+        });
+        return;
+      }
+
+      setState(() => _isSearchingLocations = true);
+
+      final results = await LocationSearchService.search(value);
+
+      if (!mounted) return;
+
+      setState(() {
+        _suggestions = results;
+        _isSearchingLocations = false;
+      });
+    });
+  }
+
+  void _selectSuggestion(LocationSuggestion suggestion) {
+    setState(() {
+      if (_activeLocationField == 'from') {
+        _fromController.text = suggestion.displayName;
+        _fromPoint = LatLng(suggestion.lat, suggestion.lon);
+      } else if (_activeLocationField == 'to') {
+        _toController.text = suggestion.displayName;
+        _toPoint = LatLng(suggestion.lat, suggestion.lon);
+      }
+      _suggestions = [];
+    });
+
+    _updateRouteInfo();
+    FocusScope.of(context).unfocus();
+  }
+
+  // ------------------------------------------------------------
+  // MAP PICKER (BOTTOM SHEET)
+  // ------------------------------------------------------------
+  Future<void> _openMapPicker(
+    TextEditingController controller, {
+    required String fieldId,
+  }) async {
+    LatLng? selectedPoint;
+
+    // Always try to center on user first for better UX
+    LatLng initialCenter = const LatLng(26.0667, 50.5577); // Bahrain default
+    final current = await _getCurrentLocation();
+    if (current != null) {
+      initialCenter = current;
+      selectedPoint = current; // pin on current location by default
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        final mapController = MapController();
+
+        return StatefulBuilder(
+          builder: (context, setStateSheet) {
+            return SizedBox(
+              height: MediaQuery.of(context).size.height * 0.85,
+              child: Stack(
+                children: [
+                  FlutterMap(
+                    mapController: mapController,
+                    options: MapOptions(
+                      initialCenter: initialCenter,
+                      initialZoom: 13,
+                      onTap: (_, point) {
+                        setStateSheet(() {
+                          selectedPoint = point;
+                        });
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                        subdomains: const ['a', 'b', 'c', 'd'],
+                        userAgentPackageName: 'com.example.uniride_app',
+                      ),
+                      if (selectedPoint != null)
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: selectedPoint!,
+                              child: const Icon(
+                                Icons.location_pin,
+                                color: Colors.red,
+                                size: 40,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                  Positioned(
+                    bottom: 20,
+                    left: 20,
+                    right: 20,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kUniRideTeal2,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: selectedPoint == null
+                          ? null
+                          : () async {
+                              final address =
+                                  await LocationSearchService.reverse(
+                                    selectedPoint!,
+                                  );
+
+                              setState(() {
+                                controller.text =
+                                    address ??
+                                    "${selectedPoint!.latitude}, ${selectedPoint!.longitude}";
+
+                                if (fieldId == 'from') {
+                                  _fromPoint = selectedPoint;
+                                } else {
+                                  _toPoint = selectedPoint;
+                                }
+                              });
+
+                              _updateRouteInfo();
+                              Navigator.pop(context);
+                            },
+                      child: const Text(
+                        "Confirm Location",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ------------------------------------------------------------
+  // DATE PICKER
+  // ------------------------------------------------------------
   void _openCalendar() {
     showModalBottomSheet(
       context: context,
@@ -63,14 +482,11 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-
               Expanded(
                 child: Theme(
                   data: Theme.of(context).copyWith(
                     colorScheme: const ColorScheme.light(
-                      primary: kUniRideTeal2, // selected date color
-                      onPrimary: Colors.white,
-                      onSurface: Colors.black87,
+                      primary: kUniRideTeal2,
                     ),
                   ),
                   child: CalendarDatePicker(
@@ -95,7 +511,9 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
-  // --------------------- TIME PICKER (AM/PM) ---------------------
+  // ------------------------------------------------------------
+  // TIME PICKER (AM/PM)
+  // ------------------------------------------------------------
   void _openTimePicker() {
     final hours = List.generate(12, (i) => i + 1);
     final minutes = List.generate(60, (i) => i.toString().padLeft(2, "0"));
@@ -125,14 +543,11 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 10),
-
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Hours
                     Expanded(
                       child: CupertinoPicker(
                         itemExtent: 32,
@@ -147,8 +562,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                             .toList(),
                       ),
                     ),
-
-                    // Minutes
                     Expanded(
                       child: CupertinoPicker(
                         itemExtent: 32,
@@ -163,8 +576,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                             .toList(),
                       ),
                     ),
-
-                    // AM/PM
                     Expanded(
                       child: CupertinoPicker(
                         itemExtent: 32,
@@ -182,10 +593,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 10),
-
-              // Confirm Button
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kUniRideTeal2,
@@ -203,7 +611,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                       hour: hour,
                       minute: selectedMinute,
                     );
-
                     _timeController.text =
                         "${hours[selectedHour]}:${minutes[selectedMinute]} ${ampm[selectedAmPm]}";
                   });
@@ -225,6 +632,154 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // AUTOCOMPLETE LIST UI
+  // ------------------------------------------------------------
+  Widget _buildLocationSuggestions() {
+    if (_suggestions.isEmpty || _activeLocationField == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _suggestions.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final s = _suggestions[index];
+          return ListTile(
+            leading: const Icon(
+              Icons.location_on_outlined,
+              color: kUniRideTeal2,
+            ),
+            title: Text(
+              s.displayName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            onTap: () => _selectSuggestion(s),
+          );
+        },
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // ROUTE PREVIEW MAP (fit whole route)
+  // ------------------------------------------------------------
+  Widget _buildRoutePreview() {
+    if (_fromPoint == null || _toPoint == null) {
+      return const SizedBox.shrink();
+    }
+
+    final bounds = LatLngBounds.fromPoints([_fromPoint!, _toPoint!]);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_distanceKm != null && _durationMinutes != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0, top: 4),
+            child: Text(
+              "Approx. ${_distanceKm!.toStringAsFixed(1)} km • ~$_durationMinutes min by car",
+              style: const TextStyle(
+                color: Colors.black54,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        Container(
+          height: 180,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: FlutterMap(
+              options: MapOptions(
+                initialCameraFit: CameraFit.bounds(
+                  bounds: bounds,
+                  padding: const EdgeInsets.all(30),
+                ),
+                interactionOptions: const InteractionOptions(
+                  flags:
+                      InteractiveFlag.pinchZoom |
+                      InteractiveFlag.drag |
+                      InteractiveFlag.doubleTapZoom,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                  subdomains: const ['a', 'b', 'c', 'd'],
+                  userAgentPackageName: 'com.example.uniride_app',
+                ),
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: [_fromPoint!, _toPoint!],
+                      strokeWidth: 4,
+                      color: kUniRideTeal2,
+                    ),
+                  ],
+                ),
+                MarkerLayer(
+                  markers: [
+                    // From = blue dot (usually user's location)
+                    Marker(
+                      point: _fromPoint!,
+                      child: const Icon(
+                        Icons.circle,
+                        color: Colors.blue,
+                        size: 14,
+                      ),
+                    ),
+                    // To = red pin
+                    Marker(
+                      point: _toPoint!,
+                      child: const Icon(
+                        Icons.location_pin,
+                        color: Colors.red,
+                        size: 32,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -245,7 +800,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
           style: TextStyle(color: kUniRideTeal2, fontWeight: FontWeight.bold),
         ),
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
@@ -257,7 +811,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                 style: TextStyle(color: Colors.black54, fontSize: 14),
               ),
               const SizedBox(height: 20),
-
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
@@ -275,17 +828,34 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      _buildField(
+                      _buildLocationField(
                         controller: _fromController,
                         label: "From",
                         icon: Icons.location_on_outlined,
+                        focusNode: _fromFocusNode,
+                        fieldId: 'from',
                       ),
-                      _buildField(
+                      _buildLocationField(
                         controller: _toController,
                         label: "To",
                         icon: Icons.flag_outlined,
+                        focusNode: _toFocusNode,
+                        fieldId: 'to',
                       ),
-
+                      if (_isSearchingLocations)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8.0),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                      _buildLocationSuggestions(),
+                      _buildRoutePreview(),
                       Row(
                         children: [
                           Expanded(
@@ -309,7 +879,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                           ),
                         ],
                       ),
-
                       Row(
                         children: [
                           Expanded(
@@ -331,9 +900,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 20),
-
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -374,7 +941,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 30),
             ],
           ),
@@ -383,7 +949,54 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     );
   }
 
-  // ---------- CUSTOM FIELD ----------
+  // ---------- LOCATION FIELD (with text + map icon) ----------
+  Widget _buildLocationField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required FocusNode focusNode,
+    required String fieldId,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: TextFormField(
+        controller: controller,
+        focusNode: focusNode,
+        keyboardType: TextInputType.text,
+        onChanged: (value) => _onLocationChanged(fieldId, value),
+        validator: (value) =>
+            value == null || value.isEmpty ? "Required" : null,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+          prefixIcon: Icon(icon, color: kUniRideTeal2),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.map_outlined, color: kUniRideTeal2),
+            onPressed: () => _openMapPicker(controller, fieldId: fieldId),
+          ),
+          labelText: "$label (search or pick on map)",
+          labelStyle: const TextStyle(color: Colors.black54),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 14,
+            horizontal: 12,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: kUniRideTeal2.withOpacity(0.4),
+              width: 1.2,
+            ),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+            borderSide: BorderSide(color: kUniRideTeal2, width: 1.8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------- NON-LOCATION FIELD ----------
   Widget _buildField({
     required TextEditingController controller,
     required String label,
@@ -418,9 +1031,9 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
               width: 1.2,
             ),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: kUniRideTeal2, width: 1.8),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+            borderSide: BorderSide(color: kUniRideTeal2, width: 1.8),
           ),
         ),
       ),

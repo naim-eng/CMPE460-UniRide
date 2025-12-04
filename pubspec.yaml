@@ -23,6 +23,9 @@ dependencies:
   # Location package
   geolocator: ^10.0.0
 
+  # Autocomplete / HTTP requests
+  http: ^1.2.0
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -35,4 +38,3 @@ flutter:
 
   assets:
     - assets/uniride_logo.jpg
-
