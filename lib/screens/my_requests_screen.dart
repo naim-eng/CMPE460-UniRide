@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'rating_screen.dart';
 import 'package:uniride_app/services/rating_service.dart';
-import '../services/ride_service.dart'; // still fine even if only used in decline
 
 class MyRequestsScreen extends StatefulWidget {
   const MyRequestsScreen({super.key});
@@ -17,8 +16,8 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   static const Color kUniRideTeal1 = Color(0xFF00BCC9);
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
 
-  final RideService _rideService =
-      RideService(); // used in decline (future use)
+  // final RideService _rideService =
+  //     RideService(); // used in decline (future use)
 
   /// ✅ ACCEPT REQUEST:
   /// - Mark request as 'accepted'
@@ -120,6 +119,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
               stream: FirebaseFirestore.instance
                   .collection('ride_requests')
                   .where('driverId', isEqualTo: user.uid)
+                  .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {

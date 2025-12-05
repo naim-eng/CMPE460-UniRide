@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:uniride_app/screens/rides_screen.dart';
+import 'my_offered_rides_screen.dart';
 
 class RidePublishedScreen extends StatelessWidget {
   final String from;
@@ -126,7 +126,11 @@ class RidePublishedScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.popUntil(context, (route) => route.isFirst);
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/home',
+                    (route) => false,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kUniRideYellow,
@@ -156,7 +160,7 @@ class RidePublishedScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const RidesScreen(),
+                      builder: (_) => const MyOfferedRidesScreen(),
                     ),
                   );
                 },

@@ -1,26 +1,26 @@
-// lib/screens/ride_details_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'request_confirmation_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-class RideDetailsScreen extends StatefulWidget {
+class PassengerRideDetailsScreen extends StatefulWidget {
   final String rideId;
   final Map<String, dynamic> rideData;
 
-  const RideDetailsScreen({
+  const PassengerRideDetailsScreen({
     super.key,
     required this.rideId,
     required this.rideData,
   });
 
   @override
-  State<RideDetailsScreen> createState() => _RideDetailsScreenState();
+  State<PassengerRideDetailsScreen> createState() =>
+      _PassengerRideDetailsScreenState();
 }
 
-class _RideDetailsScreenState extends State<RideDetailsScreen> {
+class _PassengerRideDetailsScreenState
+    extends State<PassengerRideDetailsScreen> {
   static const Color kScreenTeal = Color(0xFFE0F9FB);
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
   static const Color kUniRideYellow = Color(0xFFFFC727);
@@ -60,7 +60,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
       return;
     }
 
-    // prevent requesting if full (extra safety – UI already blocks)
+    // prevent requesting if full
     final seatsAvailable = widget.rideData['seatsAvailable'] ?? 0;
     if (seatsAvailable <= 0) {
       _showMessage("This ride is full");
@@ -148,6 +148,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     final data = widget.rideData;
 
     final driverName = data['driverName'] ?? 'UniRide User';
+    final driverRating = (data['driverRating'] ?? 0).toDouble();
 
     final carMake = data['vehicleMake'] ?? "Car";
     final carModel = data['vehicleModel'] ?? "";
@@ -225,17 +226,39 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        driverName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          driverName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              size: 14,
+                              color: Colors.amber,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              driverRating > 0
+                                  ? driverRating.toStringAsFixed(1)
+                                  : "No rating",
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -455,6 +478,20 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
           children: [
             SizedBox(
               width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _showRideDetailsModal,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kUniRideTeal2,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.info_outline, size: 18),
+                label: const Text("View Details"),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
               child: ElevatedButton(
                 onPressed: accepted
                     ? null
@@ -504,6 +541,80 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
         );
       },
     );
+  }
+
+  void _showRideDetailsModal() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text(
+          "Ride Details",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _detailRow("From", widget.rideData['pickupLocation'] ?? 'N/A'),
+              _detailRow("To", widget.rideData['dropoffLocation'] ?? 'N/A'),
+              _detailRow(
+                "Departure",
+                _formatDateTime(widget.rideData['dateTime']),
+              ),
+              _detailRow(
+                "Seats Available",
+                (widget.rideData['seatsAvailable'] ?? 0).toString(),
+              ),
+              _detailRow(
+                "Price per Seat",
+                "\$${widget.rideData['pricePerSeat']?.toStringAsFixed(2) ?? '0.00'}",
+              ),
+              _detailRow("Car Model", widget.rideData['carModel'] ?? 'N/A'),
+              _detailRow("Color", widget.rideData['carColor'] ?? 'N/A'),
+              _detailRow(
+                "License Plate",
+                widget.rideData['licensePlate'] ?? 'N/A',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("$label: ", style: const TextStyle(fontWeight: FontWeight.bold)),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateTime(dynamic dateTime) {
+    if (dateTime == null) return 'N/A';
+    try {
+      if (dateTime is Timestamp) {
+        final date = dateTime.toDate();
+        return "${date.month}/${date.day}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+      }
+      return dateTime.toString();
+    } catch (e) {
+      return 'N/A';
+    }
   }
 
   Future<void> _cancelRequestWithReason(String requestId) async {

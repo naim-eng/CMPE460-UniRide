@@ -1,8 +1,33 @@
 import 'package:flutter/material.dart';
-import 'rides_screen.dart';
+import 'my_offered_rides_screen.dart';
 
 class RequestConfirmationScreen extends StatelessWidget {
-  const RequestConfirmationScreen({super.key});
+  final String? driverName;
+  final String? from;
+  final String? to;
+  final String? date;
+  final String? time;
+  final String? price;
+  final String? seats;
+  final String? carMake;
+  final String? carModel;
+  final String? carColor;
+  final String? licensePlate;
+
+  const RequestConfirmationScreen({
+    super.key,
+    this.driverName,
+    this.from,
+    this.to,
+    this.date,
+    this.time,
+    this.price,
+    this.seats,
+    this.carMake,
+    this.carModel,
+    this.carColor,
+    this.licensePlate,
+  });
 
   static const Color kScreenTeal = Color(0xFFE0F9FB);
   static const Color kUniRideTeal1 = Color(0xFF00BCC9);
@@ -87,43 +112,129 @@ class RequestConfirmationScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: kUniRideTeal2,
-                    child: const Text(
-                      "T",
-                      style: TextStyle(color: Colors.white, fontSize: 20),
-                    ),
-                  ),
-
-                  const SizedBox(width: 14),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          "Talal AlHamer",
-                          style: TextStyle(
+                  // Driver info
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: kUniRideTeal2,
+                        child: Text(
+                          (driverName ?? "D").substring(0, 1).toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          driverName ?? "Driver Name",
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
-                          "AUBH Campus → City Center",
-                          style: TextStyle(color: Colors.black54, fontSize: 13),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          "Time: 2:30 PM   •   BD 2.0",
-                          style: TextStyle(color: Colors.black87, fontSize: 14),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+
+                  // Route
+                  _infoRow("From", from ?? "N/A"),
+                  const SizedBox(height: 8),
+                  _infoRow("To", to ?? "N/A"),
+
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 12),
+
+                  // Date & Time
+                  _infoRow("Date", date ?? "N/A"),
+                  const SizedBox(height: 8),
+                  _infoRow("Time", time ?? "N/A"),
+
+                  if (carMake != null ||
+                      carModel != null ||
+                      carColor != null ||
+                      licensePlate != null) ...[
+                    const SizedBox(height: 12),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Vehicle info
+                  if (carMake != null || carModel != null) ...[
+                    _infoRow(
+                      "Vehicle",
+                      "${carMake ?? ''} ${carModel ?? ''}".trim(),
                     ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (carColor != null) ...[
+                    _infoRow("Color", carColor!),
+                    const SizedBox(height: 8),
+                  ],
+                  if (licensePlate != null) _infoRow("License", licensePlate!),
+
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 12),
+
+                  // Price & Seats
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Seats",
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            seats ?? "1",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            "Price",
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "BD ${price ?? '0.00'}",
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: kUniRideTeal2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -155,7 +266,11 @@ class RequestConfirmationScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.popUntil(context, (route) => route.isFirst);
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/home',
+                    (route) => false,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kUniRideYellow,
@@ -184,7 +299,9 @@ class RequestConfirmationScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const RidesScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const MyOfferedRidesScreen(),
+                    ),
                   );
                 },
                 style: OutlinedButton.styleFrom(
@@ -209,6 +326,31 @@ class RequestConfirmationScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.black54, fontSize: 14),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

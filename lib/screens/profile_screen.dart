@@ -3,12 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'widgets/bottom_nav.dart';
-import 'rides_screen.dart';
+import 'my_offered_rides_screen.dart';
 import 'my_requests_screen.dart';
 import 'vehicles_screen.dart';
 import 'package:uniride_app/services/rating_service.dart';
 
-// COLORS (matching Home)
+// COLORS
 const Color kScreenTeal = Color(0xFFE0F9FB);
 const Color kUniRideTeal2 = Color(0xFF009DAE);
 const Color kUniRideTeal1 = Color(0xFF00BCC9);
@@ -279,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             icon: Icons.star,
                             label: "Rating",
                             value: snap.data ?? "—",
-                            iconColor: kUniRideYellow, // Yellow accent!
+                            iconColor: kUniRideYellow,
                           );
                         },
                       ),
@@ -289,7 +289,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 20),
 
-                // ACCOUNT DETAILS
+                // ACCOUNT DETAILS CARD
                 _WhiteCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,7 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const RidesScreen(),
+                            builder: (_) => const MyOfferedRidesScreen(),
                           ),
                         ),
                       ),
@@ -366,7 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 30),
 
-                // LOGOUT
+                // LOGOUT BUTTON
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -398,7 +398,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// =============== REUSABLES ==================
+// ===================== REUSABLE WIDGETS =========================
 
 class _WhiteCard extends StatelessWidget {
   final Widget child;
