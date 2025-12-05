@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'rating_screen.dart';
 import 'package:uniride_app/services/rating_service.dart';
+import '../services/ride_service.dart'; // still fine even if only used in decline
 
 class MyRequestsScreen extends StatefulWidget {
   const MyRequestsScreen({super.key});
@@ -12,31 +13,66 @@ class MyRequestsScreen extends StatefulWidget {
 }
 
 class _MyRequestsScreenState extends State<MyRequestsScreen> {
-
   static const Color kScreenTeal = Color(0xFFE0F9FB);
   static const Color kUniRideTeal1 = Color(0xFF00BCC9);
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
 
+  final RideService _rideService =
+      RideService(); // used in decline (future use)
+
+  /// ✅ ACCEPT REQUEST:
+  /// - Mark request as 'accepted'
+  /// - Decrease seatsAvailable on the ride
   Future<void> _acceptRequest(String requestId, String rideId) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('ride_requests')
-          .doc(requestId)
-          .update({'status': 'accepted'});
-      
+      final db = FirebaseFirestore.instance;
+
+      // 🔹 First, mark the request as accepted
+      final requestRef = db.collection('ride_requests').doc(requestId);
+      await requestRef.update({'status': 'accepted'});
+
+      // 🔹 Then, safely decrement seatsAvailable on the ride
+      final rideRef = db.collection('rides').doc(rideId);
+
+      await db.runTransaction((txn) async {
+        final snap = await txn.get(rideRef);
+        if (!snap.exists) return;
+
+        final data = snap.data() as Map<String, dynamic>;
+        final current = data['seatsAvailable'];
+
+        int seatsAvailable;
+        if (current is int) {
+          seatsAvailable = current;
+        } else {
+          seatsAvailable = int.tryParse(current.toString()) ?? 0;
+        }
+
+        if (seatsAvailable > 0) {
+          txn.update(rideRef, {'seatsAvailable': seatsAvailable - 1});
+        }
+      });
+
       _showMessage("Request accepted!");
     } catch (e) {
       _showMessage("Error accepting request: $e");
     }
   }
 
-  Future<void> _declineRequest(String requestId) async {
+  /// DECLINE REQUEST:
+  /// - Only changes status to 'declined'
+  /// - We do NOT touch seats here because they are only reduced on accept
+  Future<void> _declineRequest(String requestId, String rideId) async {
     try {
       await FirebaseFirestore.instance
           .collection('ride_requests')
           .doc(requestId)
           .update({'status': 'declined'});
-      
+
+      // Note: _rideService.cancelSeat(rideId) is NOT called here
+      // because seatsAvailable is only reduced when accepting a request.
+      // If you later add "un-accept" logic, you can use cancelSeat there.
+
       _showMessage("Request declined");
     } catch (e) {
       _showMessage("Error declining request: $e");
@@ -131,14 +167,17 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                 final requests = snapshot.data!.docs;
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                   child: ListView.separated(
                     itemCount: requests.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final doc = requests[index];
                       final data = doc.data() as Map<String, dynamic>;
-                      
+
                       return _requestCard(
                         requestId: doc.id,
                         rideId: data['rideId'] ?? '',
@@ -173,10 +212,10 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   }) {
     final Color statusColor;
     switch (status) {
-      case "Accepted":
+      case "accepted":
         statusColor = Colors.green;
         break;
-      case "Declined":
+      case "declined":
         statusColor = Colors.redAccent;
         break;
       default:
@@ -199,14 +238,15 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Passenger info + status + rating
           Row(
             children: [
               CircleAvatar(
                 radius: 22,
                 backgroundColor: kUniRideTeal1,
                 child: Text(
-                  passengerName.isNotEmpty ? passengerName[0].toUpperCase() : 'P',
+                  passengerName.isNotEmpty
+                      ? passengerName[0].toUpperCase()
+                      : 'P',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -241,7 +281,9 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              rating > 0 ? rating.toStringAsFixed(1) : "No rating",
+                              rating > 0
+                                  ? rating.toStringAsFixed(1)
+                                  : "No rating",
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Colors.black54,
@@ -256,14 +298,21 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: statusColor, width: 1),
                 ),
                 child: Text(
-                  status == 'accepted' ? 'Accepted' : status == 'declined' ? 'Declined' : 'Pending',
+                  status == 'accepted'
+                      ? 'Accepted'
+                      : status == 'declined'
+                      ? 'Declined'
+                      : 'Pending',
                   style: TextStyle(
                     color: statusColor,
                     fontWeight: FontWeight.bold,
@@ -362,14 +411,13 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             ],
           ),
 
-          // Action buttons for pending requests
           if (status == 'pending') ...[
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _declineRequest(requestId),
+                    onPressed: () => _declineRequest(requestId, rideId),
                     icon: const Icon(Icons.close, size: 18),
                     label: const Text('Decline'),
                     style: ElevatedButton.styleFrom(
@@ -417,7 +465,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                         rideId: rideId,
                         isDriver: true,
                         usersToRate: [
-                          {'userId': passengerId, 'name': passengerName}
+                          {'userId': passengerId, 'name': passengerName},
                         ],
                       ),
                     ),

@@ -309,7 +309,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                       zoom: 13,
                     ),
 
-                    // ⭐ FIX: Allow dragging/panning in bottom sheet
+                    // ⭐ Allow dragging/panning in bottom sheet
                     gestureRecognizers: {
                       Factory<OneSequenceGestureRecognizer>(
                         () => EagerGestureRecognizer(),
@@ -511,7 +511,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
                       if (startTime != null &&
                           !_isEndAfterStart(startTime!, picked)) {
                         _showMessage("End time must be after the start time.");
-                        return; // ⭐ DO NOT POP SCREEN
+                        return; // DO NOT POP SCREEN
                       }
 
                       endTime = picked;
@@ -856,8 +856,27 @@ class _FindRideScreenState extends State<FindRideScreen> {
   }) {
     final driverId = data['driverId'] ?? "";
 
+    // Read REAL seatsAvailable
+    final int seatsAvailable = data['seatsAvailable'] is int
+        ? data['seatsAvailable']
+        : int.tryParse("${data['seatsAvailable']}") ?? 0;
+
+    final bool isFull = seatsAvailable <= 0;
+
     return GestureDetector(
       onTap: () {
+        // Option C: allow open, but notify if full
+        if (isFull) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "This ride is currently full. You can still view details.",
+              ),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -865,127 +884,150 @@ class _FindRideScreenState extends State<FindRideScreen> {
           ),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.12),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: kUniRideTeal2,
-              child: Text(
-                name.isNotEmpty ? name[0] : "?",
-                style: const TextStyle(color: Colors.white, fontSize: 20),
+      child: Opacity(
+        opacity: isFull ? 0.7 : 1.0, // slightly dim when FULL
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-
-                      FutureBuilder<double>(
-                        future: RatingService.getAverageRating(driverId),
-                        builder: (context, snap) {
-                          final r = snap.data ?? 0.0;
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: r > 0
-                                  ? Colors.orange.shade300
-                                  : Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  r > 0 ? r.toStringAsFixed(1) : "—",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Text(
-                    "$pickup → $destination",
-                    style: const TextStyle(color: Colors.black54, fontSize: 13),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time,
-                            size: 16,
-                            color: Colors.black54,
+            ],
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: kUniRideTeal2,
+                child: Text(
+                  name.isNotEmpty ? name[0] : "?",
+                  style: const TextStyle(color: Colors.white, fontSize: 20),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(width: 4),
-                          Text(time, style: const TextStyle(fontSize: 13)),
-                        ],
-                      ),
-                      Text(
-                        seats,
-                        style: const TextStyle(
-                          color: Colors.black54,
-                          fontSize: 13,
                         ),
-                      ),
-                      Text(
-                        price,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: kUniRideTeal2,
+
+                        // Driver Rating
+                        FutureBuilder<double>(
+                          future: RatingService.getAverageRating(driverId),
+                          builder: (context, snap) {
+                            final r = snap.data ?? 0.0;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: r > 0
+                                    ? Colors.orange.shade300
+                                    : Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    r > 0 ? r.toStringAsFixed(1) : "—",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      "$pickup → $destination",
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 13,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.access_time,
+                              size: 16,
+                              color: Colors.black54,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(time, style: const TextStyle(fontSize: 13)),
+                          ],
+                        ),
+
+                        // FULL / seats available badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isFull
+                                ? Colors.red.shade400
+                                : Colors.green.shade400,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            isFull ? "FULL" : "$seatsAvailable seats",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+
+                        Text(
+                          price,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: kUniRideTeal2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

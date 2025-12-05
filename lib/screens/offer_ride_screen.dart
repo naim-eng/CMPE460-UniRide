@@ -16,6 +16,40 @@ import 'ride_published_screen.dart';
 import 'create_vehicle_screen.dart';
 import 'widgets/bottom_nav.dart';
 
+// ------------------ POPULAR BAHRAIN LOCATIONS ------------------
+final List<Map<String, dynamic>> kPopularLocations = [
+  {
+    'keywords': ['city centre', 'city center', 'citycentre', 'cc mall'],
+    'name': 'City Centre Bahrain, Manama',
+    'lat': 26.2331,
+    'lon': 50.6135,
+  },
+  {
+    'keywords': ['seef mall', 'seefmall', 'seef'],
+    'name': 'Seef Mall, Seef, Bahrain',
+    'lat': 26.2395,
+    'lon': 50.5761,
+  },
+  {
+    'keywords': ['amwaj', 'amwaj islands', 'amwaj island'],
+    'name': 'Amwaj Islands, Muharraq',
+    'lat': 26.2870,
+    'lon': 50.6460,
+  },
+  {
+    'keywords': ['juffair', 'al juffair'],
+    'name': 'Juffair, Manama, Bahrain',
+    'lat': 26.2185,
+    'lon': 50.5880,
+  },
+  {
+    'keywords': ['manama', 'manama souq', 'souq', 'bab al bahrain'],
+    'name': 'Bab Al Bahrain, Manama',
+    'lat': 26.2334,
+    'lon': 50.5755,
+  },
+];
+
 /// ------------ FORMAT ADDRESS ------------
 String formatShortAddress(Map<String, dynamic> json) {
   final address = json['address'] as Map<String, dynamic>?;
@@ -39,19 +73,18 @@ String formatShortAddress(Map<String, dynamic> json) {
     String? country = address['country'];
 
     final parts = <String>[
-      if (place != null) place,
-      if (city != null) city,
-      if (country != null) country,
-    ].where((e) => e.isNotEmpty).toList();
+      if (place != null && place.isNotEmpty) place,
+      if (city != null && city.isNotEmpty) city,
+      if (country != null && country.isNotEmpty) country,
+    ];
 
     if (parts.isNotEmpty) return parts.join(', ');
   }
 
-  final display = (json['display_name'] ?? '');
+  final display = (json['display_name'] ?? '') as String;
   if (display.isEmpty) return '';
 
   final segments = display.split(',').map((e) => e.trim()).toList();
-
   return segments.length <= 3 ? display : segments.sublist(0, 3).join(', ');
 }
 
@@ -70,61 +103,106 @@ class LocationSuggestion {
   factory LocationSuggestion.fromJson(Map<String, dynamic> json) {
     return LocationSuggestion(
       displayName: formatShortAddress(json),
-      lat: double.parse(json['lat'] ?? '0'),
-      lon: double.parse(json['lon'] ?? '0'),
+      lat: double.tryParse(json['lat']?.toString() ?? '0') ?? 0.0,
+      lon: double.tryParse(json['lon']?.toString() ?? '0') ?? 0.0,
     );
   }
 }
 
 /// ------------ API SERVICE ------------
 class LocationSearchService {
-  static const _baseSearch = "https://nominatim.openstreetmap.org/search";
-  static const _baseReverse = "https://nominatim.openstreetmap.org/reverse";
+  static const _searchBaseUrl = 'https://nominatim.openstreetmap.org/search';
+  static const _reverseBaseUrl = 'https://nominatim.openstreetmap.org/reverse';
 
-  static Future<List<LocationSuggestion>> search(String q) async {
-    if (q.length < 3) return [];
+  static Future<List<LocationSuggestion>> search(String query) async {
+    if (query.trim().length < 3) return [];
 
+    final normalized = query.toLowerCase().trim();
     final List<LocationSuggestion> manual = [];
 
-    if (q.toLowerCase().contains("aubh")) {
+    // ------------------ POPULAR LOCATIONS MATCH ------------------
+    for (final place in kPopularLocations) {
+      final List keywords = place['keywords'] as List;
+      if (keywords.any((k) => normalized.contains(k.toString()))) {
+        manual.add(
+          LocationSuggestion(
+            displayName: place['name'] as String,
+            lat: place['lat'] as double,
+            lon: place['lon'] as double,
+          ),
+        );
+      }
+    }
+
+    // ------------------ AUBH SPECIAL MATCH ------------------
+    if (normalized.contains('aubh') ||
+        normalized.contains('american university of bahrain') ||
+        normalized.contains('american university') ||
+        normalized.contains('university of bahrain') ||
+        (normalized.contains('american') &&
+            normalized.contains('university'))) {
       manual.add(
         LocationSuggestion(
-          displayName: "American University of Bahrain, Riffa",
-          lat: 26.10,
-          lon: 50.56,
+          displayName: 'American University of Bahrain, Riffa, Bahrain',
+          lat: 26.1000,
+          lon: 50.5560,
         ),
       );
     }
 
+    // ------------------ NOMINATIM API SEARCH ------------------
+    const viewbox = '49.8,26.8,50.8,25.5';
+
     final uri = Uri.parse(
-      "$_baseSearch?q=$q&format=json&addressdetails=1&limit=5&accept-language=en&countrycodes=bh,sa",
+      '$_searchBaseUrl'
+      '?q=${Uri.encodeQueryComponent(query)}'
+      '&format=json'
+      '&addressdetails=1'
+      '&limit=5'
+      '&accept-language=en'
+      '&countrycodes=bh,sa'
+      '&viewbox=$viewbox'
+      '&bounded=1',
     );
 
-    final res = await http.get(uri, headers: {"User-Agent": "uniride/1.0"});
+    final response = await http.get(
+      uri,
+      headers: {'User-Agent': 'uniride_app/1.0 (student project)'},
+    );
 
-    if (res.statusCode != 200) return manual;
+    if (response.statusCode != 200) {
+      return manual;
+    }
 
-    final data = json.decode(res.body);
-    return [
-      ...manual,
-      ...List<LocationSuggestion>.from(
-        data.map((e) => LocationSuggestion.fromJson(e)),
-      ),
-    ];
+    final List data = json.decode(response.body);
+    final apiResults = data
+        .map((e) => LocationSuggestion.fromJson(e))
+        .toList()
+        .cast<LocationSuggestion>();
+
+    return [...manual, ...apiResults];
   }
 
-  static Future<String?> reverse(LatLng p) async {
+  static Future<String?> reverse(LatLng point) async {
     final uri = Uri.parse(
-      "$_baseReverse?lat=${p.latitude}&lon=${p.longitude}&format=json&addressdetails=1",
+      '$_reverseBaseUrl'
+      '?lat=${point.latitude}'
+      '&lon=${point.longitude}'
+      '&format=json'
+      '&addressdetails=1'
+      '&accept-language=en',
     );
 
-    final res = await http.get(uri, headers: {"User-Agent": "uniride/1.0"});
+    final response = await http.get(
+      uri,
+      headers: {'User-Agent': 'uniride_app/1.0 (student project)'},
+    );
 
-    if (res.statusCode != 200) return null;
+    if (response.statusCode != 200) return null;
 
-    final data = json.decode(res.body);
+    final data = json.decode(response.body);
     final short = formatShortAddress(data);
-    return short.isEmpty ? data['display_name'] : short;
+    return short.isNotEmpty ? short : data['display_name'] as String?;
   }
 }
 
@@ -207,7 +285,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
   void _search(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () async {
-      if (value.length < 3) {
+      if (value.trim().length < 3) {
         setState(() => _results = []);
         return;
       }
@@ -276,15 +354,12 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                     onTap: (p) {
                       setSheet(() => picked = p);
                     },
-
-                    // ⭐ FIX: MAP NOW MOVES
                     gestureRecognizers: {
                       Factory<OneSequenceGestureRecognizer>(
                         () => EagerGestureRecognizer(),
                       ),
                     },
                   ),
-
                   Positioned(
                     bottom: 20,
                     left: 20,
@@ -354,7 +429,6 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
     double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     double d = R * c;
 
-    // assume ~45km/h average
     int minutes = (d / 45 * 60).round().clamp(1, 999);
 
     setState(() {
@@ -443,7 +517,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
 
   // ---------------- TIME PICKER ----------------
   void _openTimePicker() {
-    final hours = List.generate(12, (i) => i + 1); // 1-12
+    final hours = List.generate(12, (i) => i + 1);
     final minutes = List.generate(60, (i) => i.toString().padLeft(2, '0'));
     final ampm = ["AM", "PM"];
 
@@ -658,6 +732,9 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
       final profile = userDoc.data() ?? {};
       final phone = profile['phone'] ?? '';
 
+      final totalSeats = int.tryParse(_seats.text) ?? 1;
+      final priceValue = double.tryParse(_price.text) ?? 0.0;
+
       final rideData = {
         'driverId': user.uid,
         'driverName': user.displayName ?? 'UniRide User',
@@ -671,9 +748,9 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
         'toLng': toPoint?.longitude,
         'date': _date.text,
         'time': _time.text,
-        'seats': int.tryParse(_seats.text) ?? 1,
-        'seatsAvailable': int.tryParse(_seats.text) ?? 1,
-        'price': double.tryParse(_price.text) ?? 0.0,
+        'seats': totalSeats, // total seats
+        'seatsAvailable': totalSeats, // live available seats
+        'price': priceValue,
         'distanceKm': distanceKm,
         'durationMinutes': durationMin,
         'status': 'active',

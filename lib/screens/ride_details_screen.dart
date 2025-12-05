@@ -1,8 +1,9 @@
+// lib/screens/ride_details_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'request_confirmation_screen.dart';
-import 'rating_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class RideDetailsScreen extends StatefulWidget {
@@ -53,11 +54,20 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
       return;
     }
 
+    // prevent driver from requesting own ride
     if (widget.rideData['driverId'] == user.uid) {
       _showMessage("You cannot request your own ride");
       return;
     }
 
+    // prevent requesting if full (extra safety – UI already blocks)
+    final seatsAvailable = widget.rideData['seatsAvailable'] ?? 0;
+    if (seatsAvailable <= 0) {
+      _showMessage("This ride is full");
+      return;
+    }
+
+    // prevent duplicate request
     final existingRequest = await FirebaseFirestore.instance
         .collection('ride_requests')
         .where('rideId', isEqualTo: widget.rideId)
@@ -79,11 +89,13 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
       final userProfile = userDoc.data() ?? {};
       final passengerPhone = userProfile['phone'] ?? '';
+      final passengerName =
+          userProfile['name'] ?? user.displayName ?? 'UniRide User';
 
       await FirebaseFirestore.instance.collection('ride_requests').add({
         'rideId': widget.rideId,
         'passengerId': user.uid,
-        'passengerName': user.displayName ?? 'UniRide User',
+        'passengerName': passengerName,
         'passengerEmail': user.email ?? '',
         'passengerPhone': passengerPhone,
         'driverId': widget.rideData['driverId'],
@@ -122,7 +134,6 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     final data = widget.rideData;
 
     final driverName = data['driverName'] ?? 'UniRide User';
-    final driverRating = data['driverRating']?.toString() ?? '—';
 
     final carMake = data['vehicleMake'] ?? "Car";
     final carModel = data['vehicleModel'] ?? "";
@@ -133,16 +144,23 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     final to = data['to'] ?? 'Unknown';
     final date = data['date'] ?? 'N/A';
     final time = data['time'] ?? 'N/A';
-    final price = data['price']?.toString() ?? '0.0';
-    final seats = data['seatsAvailable']?.toString() ?? '0';
+    final price = "${data['price'] ?? 0}";
+    final seats = "${data['seatsAvailable'] ?? 0}";
 
     final fromLat = data['fromLat'];
     final fromLng = data['fromLng'];
     final toLat = data['toLat'];
     final toLng = data['toLng'];
 
-    final distanceKm = data['distanceKm']?.toStringAsFixed(1) ?? '?';
-    final durationMin = data['durationMinutes']?.toString() ?? '?';
+    final dynamic distanceRaw = data['distanceKm'];
+    final dynamic durationRaw = data['durationMinutes'];
+
+    final String distanceKm = distanceRaw is num
+        ? distanceRaw.toStringAsFixed(1)
+        : '?';
+    final String durationMin = durationRaw is num
+        ? durationRaw.toString()
+        : '?';
 
     LatLng? pickupPoint = (fromLat != null && fromLng != null)
         ? LatLng(fromLat, fromLng)
@@ -169,12 +187,12 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
           style: TextStyle(color: kUniRideTeal2, fontWeight: FontWeight.bold),
         ),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // DRIVER CARD
             Container(
               padding: const EdgeInsets.all(16),
               decoration: _cardDecor(),
@@ -203,14 +221,6 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                           fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.star, size: 16, color: Colors.orange[300]),
-                          const SizedBox(width: 4),
-                          Text(driverRating),
-                        ],
-                      ),
                     ],
                   ),
                 ],
@@ -219,6 +229,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
             const SizedBox(height: 16),
 
+            // CAR CARD
             Container(
               padding: const EdgeInsets.all(16),
               decoration: _cardDecor(),
@@ -254,6 +265,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
             const SizedBox(height: 20),
 
+            // ROUTE MAP
             if (pickupPoint != null && dropoffPoint != null)
               Container(
                 padding: const EdgeInsets.all(12),
@@ -331,6 +343,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
             const SizedBox(height: 30),
 
             _actionBtn(),
+
             const SizedBox(height: 30),
           ],
         ),
@@ -382,6 +395,29 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
   Widget _actionBtn() {
     final user = FirebaseAuth.instance.currentUser;
 
+    // driver shouldn't see a button on own ride
+    if (widget.rideData['driverId'] == user?.uid) {
+      return const SizedBox.shrink();
+    }
+
+    final seatsAvailable = widget.rideData['seatsAvailable'] ?? 0;
+    if (seatsAvailable <= 0) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey.shade400,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: const Text("Ride Full", style: TextStyle(color: Colors.white)),
+        ),
+      );
+    }
+
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseFirestore.instance
           .collection('ride_requests')
@@ -393,17 +429,16 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
         final status = hasRequest
             ? snapshot.data!.docs.first['status'] as String?
             : null;
-
         final accepted = status == "accepted";
 
         return SizedBox(
           width: double.infinity,
           child: ElevatedButton(
             onPressed: accepted
-                ? () {}
+                ? null
                 : (_isRequesting ? null : _requestToJoinRide),
             style: ElevatedButton.styleFrom(
-              backgroundColor: kUniRideYellow,
+              backgroundColor: accepted ? Colors.grey.shade400 : kUniRideYellow,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -415,7 +450,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                     strokeWidth: 2,
                   )
                 : Text(
-                    accepted ? "Finish Ride" : "Request to Join Ride",
+                    accepted ? "Request Accepted" : "Request to Join Ride",
                     style: const TextStyle(
                       color: Colors.black87,
                       fontSize: 16,
