@@ -5,8 +5,8 @@ import 'firebase_options.dart';
 // Screens
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/offer_ride_screen.dart';
-import 'screens/find_ride_screen.dart';
+import 'screens/driver_offer_ride_screen.dart';
+import 'screens/passenger_find_ride_screen.dart';
 import 'screens/profile_screen.dart';
 
 void main() async {
@@ -27,8 +27,8 @@ class UniRideApp extends StatelessWidget {
       routes: {
         '/': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
-        '/find-ride': (context) => const FindRideScreen(),
-        '/offer-ride': (context) => const OfferRideScreen(),
+        '/find-ride': (context) => const PassengerFindRideScreen(),
+        '/offer-ride': (context) => const DriverOfferRideScreen(),
         '/profile': (context) => const ProfileScreen(),
       },
 
