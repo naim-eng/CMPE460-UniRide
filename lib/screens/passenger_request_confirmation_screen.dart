@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'my_offered_rides_screen.dart';
+import 'driver_my_rides_screen.dart';
 
-class RequestConfirmationScreen extends StatelessWidget {
+class PassengerRequestConfirmationScreen extends StatelessWidget {
   final String? driverName;
   final String? from;
   final String? to;
@@ -14,7 +14,7 @@ class RequestConfirmationScreen extends StatelessWidget {
   final String? carColor;
   final String? licensePlate;
 
-  const RequestConfirmationScreen({
+  const PassengerRequestConfirmationScreen({
     super.key,
     this.driverName,
     this.from,
@@ -300,7 +300,7 @@ class RequestConfirmationScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const MyOfferedRidesScreen(),
+                      builder: (_) => const DriverMyRidesScreen(),
                     ),
                   );
                 },

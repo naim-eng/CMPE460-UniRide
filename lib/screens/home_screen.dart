@@ -5,8 +5,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
-import 'offer_ride_screen.dart';
-import 'find_ride_screen.dart';
+import 'driver_offer_ride_screen.dart';
+import 'passenger_find_ride_screen.dart';
 import 'widgets/bottom_nav.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -329,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const OfferRideScreen(),
+                        builder: (_) => const DriverOfferRideScreen(),
                       ),
                     );
                   },
@@ -373,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FindRideScreen(
+                        builder: (_) => PassengerFindRideScreen(
                           initialPickupLocation: _selectedPoint,
                           initialPickupAddress: address,
                         ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'request_confirmation_screen.dart';
+import 'passenger_request_confirmation_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class PassengerRideDetailsScreen extends StatefulWidget {
@@ -117,7 +117,7 @@ class _PassengerRideDetailsScreenState
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => RequestConfirmationScreen(
+            builder: (_) => PassengerRequestConfirmationScreen(
               driverName: widget.rideData['driverName'],
               from: widget.rideData['from'],
               to: widget.rideData['to'],

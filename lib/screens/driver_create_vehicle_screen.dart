@@ -6,21 +6,21 @@ const Color kScreenTeal = Color(0xFFE0F9FB);
 const Color kUniRideTeal2 = Color(0xFF009DAE);
 const Color kUniRideYellow = Color(0xFFFFC727);
 
-class CreateVehicleScreen extends StatefulWidget {
+class DriverCreateVehicleScreen extends StatefulWidget {
   final String? vehicleId;
   final Map<String, dynamic>? initialData;
 
-  const CreateVehicleScreen({
+  const DriverCreateVehicleScreen({
     super.key,
     this.vehicleId,
     this.initialData,
   });
 
   @override
-  State<CreateVehicleScreen> createState() => _CreateVehicleScreenState();
+  State<DriverCreateVehicleScreen> createState() => _DriverCreateVehicleScreenState();
 }
 
-class _CreateVehicleScreenState extends State<CreateVehicleScreen> {
+class _DriverCreateVehicleScreenState extends State<DriverCreateVehicleScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 

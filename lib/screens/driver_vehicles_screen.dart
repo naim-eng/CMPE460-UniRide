@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'create_vehicle_screen.dart';
+import 'driver_create_vehicle_screen.dart';
 
 const Color kScreenTeal = Color(0xFFE0F9FB);
 const Color kUniRideTeal2 = Color(0xFF009DAE);
 const Color kUniRideYellow = Color(0xFFFFC727);
 
-class VehiclesScreen extends StatefulWidget {
-  const VehiclesScreen({super.key});
+class DriverVehiclesScreen extends StatefulWidget {
+  const DriverVehiclesScreen({super.key});
 
   @override
-  State<VehiclesScreen> createState() => _VehiclesScreenState();
+  State<DriverVehiclesScreen> createState() => _DriverVehiclesScreenState();
 }
 
-class _VehiclesScreenState extends State<VehiclesScreen> {
+class _DriverVehiclesScreenState extends State<DriverVehiclesScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -88,7 +88,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const CreateVehicleScreen(),
+                  builder: (context) => const DriverCreateVehicleScreen(),
                 ),
               );
             },
@@ -149,7 +149,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const CreateVehicleScreen(),
+                                  builder: (context) => const DriverCreateVehicleScreen(),
                                 ),
                               );
                             },
@@ -284,7 +284,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => CreateVehicleScreen(
+                          builder: (context) => DriverCreateVehicleScreen(
                             vehicleId: vehicleId,
                             initialData: data,
                           ),

@@ -3,21 +3,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'driver_ride_details_screen.dart';
-import 'ride_details_screen.dart';
+import 'passenger_ride_details_screen.dart';
 
 const Color kScreenTeal = Color(0xFFE0F9FB);
 const Color kUniRideTeal1 = Color(0xFF00BCC9);
 const Color kUniRideTeal2 = Color(0xFF009DAE);
 const Color kUniRideYellow = Color(0xFFFFC727);
 
-class MyOfferedRidesScreen extends StatefulWidget {
-  const MyOfferedRidesScreen({super.key});
+class DriverMyRidesScreen extends StatefulWidget {
+  const DriverMyRidesScreen({super.key});
 
   @override
-  State<MyOfferedRidesScreen> createState() => _MyOfferedRidesScreenState();
+  State<DriverMyRidesScreen> createState() => _DriverMyRidesScreenState();
 }
 
-class _MyOfferedRidesScreenState extends State<MyOfferedRidesScreen>
+class _DriverMyRidesScreenState extends State<DriverMyRidesScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
 
@@ -709,7 +709,7 @@ class _MyOfferedRidesScreenState extends State<MyOfferedRidesScreen>
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => RideDetailsScreen(rideId: rideId, rideData: data),
+          builder: (_) => PassengerRideDetailsScreen(rideId: rideId, rideData: data),
         ),
       );
     } catch (e) {

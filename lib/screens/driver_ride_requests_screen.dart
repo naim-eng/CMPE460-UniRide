@@ -4,14 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'rating_screen.dart';
 import 'package:uniride_app/services/rating_service.dart';
 
-class MyRequestsScreen extends StatefulWidget {
-  const MyRequestsScreen({super.key});
+class DriverRideRequestsScreen extends StatefulWidget {
+  const DriverRideRequestsScreen({super.key});
 
   @override
-  State<MyRequestsScreen> createState() => _MyRequestsScreenState();
+  State<DriverRideRequestsScreen> createState() => _DriverRideRequestsScreenState();
 }
 
-class _MyRequestsScreenState extends State<MyRequestsScreen> {
+class _DriverRideRequestsScreenState extends State<DriverRideRequestsScreen> {
   static const Color kScreenTeal = Color(0xFFE0F9FB);
   static const Color kUniRideTeal1 = Color(0xFF00BCC9);
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
@@ -119,12 +119,47 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
               stream: FirebaseFirestore.instance
                   .collection('ride_requests')
                   .where('driverId', isEqualTo: user.uid)
-                  .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(color: kUniRideTeal2),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 60,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            "Error loading requests",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            snapshot.error.toString(),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 }
 

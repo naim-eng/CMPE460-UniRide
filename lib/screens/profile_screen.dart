@@ -3,9 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'widgets/bottom_nav.dart';
-import 'my_offered_rides_screen.dart';
-import 'my_requests_screen.dart';
-import 'vehicles_screen.dart';
+import 'driver_my_rides_screen.dart';
+import 'driver_ride_requests_screen.dart';
+import 'driver_vehicles_screen.dart';
 import 'package:uniride_app/services/rating_service.dart';
 
 // COLORS
@@ -328,7 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const MyRequestsScreen(),
+                            builder: (_) => const DriverRideRequestsScreen(),
                           ),
                         ),
                       ),
@@ -339,7 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const MyOfferedRidesScreen(),
+                            builder: (_) => const DriverMyRidesScreen(),
                           ),
                         ),
                       ),
@@ -350,7 +350,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const VehiclesScreen(),
+                            builder: (_) => const DriverVehiclesScreen(),
                           ),
                         ),
                       ),

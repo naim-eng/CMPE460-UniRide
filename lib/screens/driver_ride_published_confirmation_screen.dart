@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'my_offered_rides_screen.dart';
+import 'driver_my_rides_screen.dart';
 
-class RidePublishedScreen extends StatelessWidget {
+class DriverRidePublishedConfirmationScreen extends StatelessWidget {
   final String from;
   final String to;
   final String date;
   final String time;
   final String price;
 
-  const RidePublishedScreen({
+  const DriverRidePublishedConfirmationScreen({
     super.key,
     required this.from,
     required this.to,
@@ -160,7 +160,7 @@ class RidePublishedScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const MyOfferedRidesScreen(),
+                      builder: (_) => const DriverMyRidesScreen(),
                     ),
                   );
                 },

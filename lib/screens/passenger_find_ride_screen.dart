@@ -11,7 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'ride_details_screen.dart';
+import 'passenger_ride_details_screen.dart';
 import 'widgets/bottom_nav.dart';
 import 'package:uniride_app/services/rating_service.dart';
 
@@ -151,21 +151,21 @@ class LocationSearchService {
 
 // ------------------------------------------------------
 
-class FindRideScreen extends StatefulWidget {
+class PassengerFindRideScreen extends StatefulWidget {
   final LatLng? initialPickupLocation;
   final String? initialPickupAddress;
 
-  const FindRideScreen({
+  const PassengerFindRideScreen({
     super.key,
     this.initialPickupLocation,
     this.initialPickupAddress,
   });
 
   @override
-  State<FindRideScreen> createState() => _FindRideScreenState();
+  State<PassengerFindRideScreen> createState() => _PassengerFindRideScreenState();
 }
 
-class _FindRideScreenState extends State<FindRideScreen> {
+class _PassengerFindRideScreenState extends State<PassengerFindRideScreen> {
   final TextEditingController _pickupController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
 
@@ -880,7 +880,7 @@ class _FindRideScreenState extends State<FindRideScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => RideDetailsScreen(rideId: rideId, rideData: data),
+            builder: (_) => PassengerRideDetailsScreen(rideId: rideId, rideData: data),
           ),
         );
       },

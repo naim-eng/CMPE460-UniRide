@@ -8,14 +8,14 @@ const Color kScreenTeal = Color(0xFFE0F9FB);
 const Color kUniRideTeal2 = Color(0xFF009DAE);
 const Color kUniRideYellow = Color(0xFFFFC727);
 
-class RidesScreen extends StatefulWidget {
-  const RidesScreen({super.key});
+class MyRidesScreen extends StatefulWidget {
+  const MyRidesScreen({super.key});
 
   @override
-  State<RidesScreen> createState() => _RidesScreenState();
+  State<MyRidesScreen> createState() => _MyRidesScreenState();
 }
 
-class _RidesScreenState extends State<RidesScreen> with SingleTickerProviderStateMixin {
+class _MyRidesScreenState extends State<MyRidesScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

@@ -12,8 +12,8 @@ import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'ride_published_screen.dart';
-import 'create_vehicle_screen.dart';
+import 'driver_ride_published_confirmation_screen.dart';
+import 'driver_create_vehicle_screen.dart';
 import 'widgets/bottom_nav.dart';
 
 // ------------------ POPULAR BAHRAIN LOCATIONS ------------------
@@ -207,14 +207,14 @@ class LocationSearchService {
 }
 
 /// ------------ OFFER RIDE SCREEN ------------
-class OfferRideScreen extends StatefulWidget {
-  const OfferRideScreen({super.key});
+class DriverOfferRideScreen extends StatefulWidget {
+  const DriverOfferRideScreen({super.key});
 
   @override
-  State<OfferRideScreen> createState() => _OfferRideScreenState();
+  State<DriverOfferRideScreen> createState() => _DriverOfferRideScreenState();
 }
 
-class _OfferRideScreenState extends State<OfferRideScreen> {
+class _DriverOfferRideScreenState extends State<DriverOfferRideScreen> {
   final _formKey = GlobalKey<FormState>();
   final _from = TextEditingController();
   final _to = TextEditingController();
@@ -661,7 +661,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const CreateVehicleScreen(),
+                    builder: (_) => const DriverCreateVehicleScreen(),
                   ),
                 );
               },
@@ -772,7 +772,7 @@ class _OfferRideScreenState extends State<OfferRideScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => RidePublishedScreen(
+            builder: (_) => DriverRidePublishedConfirmationScreen(
               from: _from.text,
               to: _to.text,
               date: _date.text,
