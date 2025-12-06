@@ -3,8 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'widgets/bottom_nav.dart';
-import 'driver_my_rides_screen.dart';
-import 'driver_ride_requests_screen.dart';
+import 'my_rides_screen.dart';
+import 'incoming_ride_requests_screen.dart';
 import 'driver_vehicles_screen.dart';
 import 'package:uniride_app/services/rating_service.dart';
 
@@ -324,11 +324,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       _LinkTile(
                         icon: Icons.group_add,
-                        label: "Ride requests",
+                        label: "Incoming Ride Requests",
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const DriverRideRequestsScreen(),
+                            builder: (_) => const IncomingRideRequestsScreen(),
                           ),
                         ),
                       ),
@@ -339,7 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const DriverMyRidesScreen(),
+                            builder: (_) => const MyRidesScreen(),
                           ),
                         ),
                       ),

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../home_screen.dart';
+import '../passenger_find_ride_screen.dart';
+import '../driver_offer_ride_screen.dart';
+import '../profile_screen.dart';
 
 class BottomNav extends StatelessWidget {
   final int currentIndex;
@@ -18,19 +22,36 @@ class BottomNav extends StatelessWidget {
       onTap: (index) {
         if (index == currentIndex) return;
 
+        Widget? targetScreen;
         switch (index) {
           case 0:
-            Navigator.pushReplacementNamed(context, '/home');
+            targetScreen = _getScreen('/home');
             break;
           case 1:
-            Navigator.pushReplacementNamed(context, '/find-ride');
+            targetScreen = _getScreen('/find-ride');
             break;
           case 2:
-            Navigator.pushReplacementNamed(context, '/offer-ride');
+            targetScreen = _getScreen('/offer-ride');
             break;
           case 3:
-            Navigator.pushReplacementNamed(context, '/profile');
+            targetScreen = _getScreen('/profile');
             break;
+        }
+
+        if (targetScreen != null) {
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => targetScreen!,
+              transitionDuration: const Duration(milliseconds: 200),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
+            ),
+          );
         }
       },
 
@@ -44,5 +65,20 @@ class BottomNav extends StatelessWidget {
         BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
       ],
     );
+  }
+
+  Widget? _getScreen(String route) {
+    switch (route) {
+      case '/home':
+        return const HomeScreen();
+      case '/find-ride':
+        return const PassengerFindRideScreen();
+      case '/offer-ride':
+        return const DriverOfferRideScreen();
+      case '/profile':
+        return const ProfileScreen();
+      default:
+        return null;
+    }
   }
 }

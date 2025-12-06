@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'driver_my_rides_screen.dart';
+import 'my_rides_screen.dart';
 
 class DriverRidePublishedConfirmationScreen extends StatelessWidget {
   final String from;
@@ -160,7 +160,7 @@ class DriverRidePublishedConfirmationScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const DriverMyRidesScreen(),
+                      builder: (_) => const MyRidesScreen(),
                     ),
                   );
                 },

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
@@ -8,203 +7,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'driver_ride_published_confirmation_screen.dart';
 import 'driver_create_vehicle_screen.dart';
 import 'widgets/bottom_nav.dart';
-
-// ------------------ POPULAR BAHRAIN LOCATIONS ------------------
-final List<Map<String, dynamic>> kPopularLocations = [
-  {
-    'keywords': ['city centre', 'city center', 'citycentre', 'cc mall'],
-    'name': 'City Centre Bahrain, Manama',
-    'lat': 26.2331,
-    'lon': 50.6135,
-  },
-  {
-    'keywords': ['seef mall', 'seefmall', 'seef'],
-    'name': 'Seef Mall, Seef, Bahrain',
-    'lat': 26.2395,
-    'lon': 50.5761,
-  },
-  {
-    'keywords': ['amwaj', 'amwaj islands', 'amwaj island'],
-    'name': 'Amwaj Islands, Muharraq',
-    'lat': 26.2870,
-    'lon': 50.6460,
-  },
-  {
-    'keywords': ['juffair', 'al juffair'],
-    'name': 'Juffair, Manama, Bahrain',
-    'lat': 26.2185,
-    'lon': 50.5880,
-  },
-  {
-    'keywords': ['manama', 'manama souq', 'souq', 'bab al bahrain'],
-    'name': 'Bab Al Bahrain, Manama',
-    'lat': 26.2334,
-    'lon': 50.5755,
-  },
-];
-
-/// ------------ FORMAT ADDRESS ------------
-String formatShortAddress(Map<String, dynamic> json) {
-  final address = json['address'] as Map<String, dynamic>?;
-
-  if (address != null) {
-    String? place =
-        address['road'] ??
-        address['pedestrian'] ??
-        address['footway'] ??
-        address['neighbourhood'] ??
-        address['suburb'] ??
-        address['hamlet'];
-
-    String? city =
-        address['city'] ??
-        address['town'] ??
-        address['village'] ??
-        address['municipality'] ??
-        address['county'];
-
-    String? country = address['country'];
-
-    final parts = <String>[
-      if (place != null && place.isNotEmpty) place,
-      if (city != null && city.isNotEmpty) city,
-      if (country != null && country.isNotEmpty) country,
-    ];
-
-    if (parts.isNotEmpty) return parts.join(', ');
-  }
-
-  final display = (json['display_name'] ?? '') as String;
-  if (display.isEmpty) return '';
-
-  final segments = display.split(',').map((e) => e.trim()).toList();
-  return segments.length <= 3 ? display : segments.sublist(0, 3).join(', ');
-}
-
-/// ------------ MODEL ------------
-class LocationSuggestion {
-  final String displayName;
-  final double lat;
-  final double lon;
-
-  LocationSuggestion({
-    required this.displayName,
-    required this.lat,
-    required this.lon,
-  });
-
-  factory LocationSuggestion.fromJson(Map<String, dynamic> json) {
-    return LocationSuggestion(
-      displayName: formatShortAddress(json),
-      lat: double.tryParse(json['lat']?.toString() ?? '0') ?? 0.0,
-      lon: double.tryParse(json['lon']?.toString() ?? '0') ?? 0.0,
-    );
-  }
-}
-
-/// ------------ API SERVICE ------------
-class LocationSearchService {
-  static const _searchBaseUrl = 'https://nominatim.openstreetmap.org/search';
-  static const _reverseBaseUrl = 'https://nominatim.openstreetmap.org/reverse';
-
-  static Future<List<LocationSuggestion>> search(String query) async {
-    if (query.trim().length < 3) return [];
-
-    final normalized = query.toLowerCase().trim();
-    final List<LocationSuggestion> manual = [];
-
-    // ------------------ POPULAR LOCATIONS MATCH ------------------
-    for (final place in kPopularLocations) {
-      final List keywords = place['keywords'] as List;
-      if (keywords.any((k) => normalized.contains(k.toString()))) {
-        manual.add(
-          LocationSuggestion(
-            displayName: place['name'] as String,
-            lat: place['lat'] as double,
-            lon: place['lon'] as double,
-          ),
-        );
-      }
-    }
-
-    // ------------------ AUBH SPECIAL MATCH ------------------
-    if (normalized.contains('aubh') ||
-        normalized.contains('american university of bahrain') ||
-        normalized.contains('american university') ||
-        normalized.contains('university of bahrain') ||
-        (normalized.contains('american') &&
-            normalized.contains('university'))) {
-      manual.add(
-        LocationSuggestion(
-          displayName: 'American University of Bahrain, Riffa, Bahrain',
-          lat: 26.1000,
-          lon: 50.5560,
-        ),
-      );
-    }
-
-    // ------------------ NOMINATIM API SEARCH ------------------
-    const viewbox = '49.8,26.8,50.8,25.5';
-
-    final uri = Uri.parse(
-      '$_searchBaseUrl'
-      '?q=${Uri.encodeQueryComponent(query)}'
-      '&format=json'
-      '&addressdetails=1'
-      '&limit=5'
-      '&accept-language=en'
-      '&countrycodes=bh,sa'
-      '&viewbox=$viewbox'
-      '&bounded=1',
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {'User-Agent': 'uniride_app/1.0 (student project)'},
-    );
-
-    if (response.statusCode != 200) {
-      return manual;
-    }
-
-    final List data = json.decode(response.body);
-    final apiResults = data
-        .map((e) => LocationSuggestion.fromJson(e))
-        .toList()
-        .cast<LocationSuggestion>();
-
-    return [...manual, ...apiResults];
-  }
-
-  static Future<String?> reverse(LatLng point) async {
-    final uri = Uri.parse(
-      '$_reverseBaseUrl'
-      '?lat=${point.latitude}'
-      '&lon=${point.longitude}'
-      '&format=json'
-      '&addressdetails=1'
-      '&accept-language=en',
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {'User-Agent': 'uniride_app/1.0 (student project)'},
-    );
-
-    if (response.statusCode != 200) return null;
-
-    final data = json.decode(response.body);
-    final short = formatShortAddress(data);
-    return short.isNotEmpty ? short : data['display_name'] as String?;
-  }
-}
+import 'package:uniride_app/services/secure_places_service.dart';
 
 /// ------------ OFFER RIDE SCREEN ------------
 class DriverOfferRideScreen extends StatefulWidget {
@@ -290,7 +99,7 @@ class _DriverOfferRideScreenState extends State<DriverOfferRideScreen> {
         return;
       }
 
-      final res = await LocationSearchService.search(value);
+      final res = await SecurePlacesService.search(value);
       if (!mounted) return;
 
       setState(() => _results = res);
@@ -375,7 +184,7 @@ class _DriverOfferRideScreenState extends State<DriverOfferRideScreen> {
                       onPressed: picked == null
                           ? null
                           : () async {
-                              final addr = await LocationSearchService.reverse(
+                              final addr = await SecurePlacesService.reverse(
                                 picked!,
                               );
 

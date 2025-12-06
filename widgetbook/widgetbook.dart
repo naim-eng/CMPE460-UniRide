@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:widgetbook/widgetbook.dart';
+import 'package:firebase_core/firebase_core.dart';
+import '../lib/firebase_options.dart';
 
 // Import your screens
 import '../lib/screens/login_screen.dart';
@@ -10,7 +12,6 @@ import '../lib/screens/passenger_find_ride_screen.dart';
 import '../lib/screens/driver_create_vehicle_screen.dart';
 import '../lib/screens/driver_offer_ride_screen.dart';
 import '../lib/screens/my_rides_screen.dart';
-import '../lib/screens/driver_my_rides_screen.dart';
 import '../lib/screens/driver_ride_requests_screen.dart';
 import '../lib/screens/driver_vehicles_screen.dart';
 import '../lib/screens/driver_ride_published_confirmation_screen.dart';
@@ -25,6 +26,42 @@ class WidgetbookApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: _initializeFirebase(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: Text('Error initializing Firebase: ${snapshot.error}'),
+              ),
+            ),
+          );
+        }
+
+        return _buildWidgetbook();
+      },
+    );
+  }
+
+  Future<void> _initializeFirebase() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
+  Widget _buildWidgetbook() {
     return Widgetbook.material(
       directories: [
         WidgetbookFolder(
@@ -100,15 +137,6 @@ class WidgetbookApp extends StatelessWidget {
                 WidgetbookUseCase(
                   name: 'Default',
                   builder: (context) => const MyRidesScreen(),
-                ),
-              ],
-            ),
-            WidgetbookComponent(
-              name: 'Driver My Rides',
-              useCases: [
-                WidgetbookUseCase(
-                  name: 'Default',
-                  builder: (context) => const DriverMyRidesScreen(),
                 ),
               ],
             ),

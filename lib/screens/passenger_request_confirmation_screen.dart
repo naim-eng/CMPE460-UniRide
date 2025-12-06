@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'driver_my_rides_screen.dart';
+import 'my_rides_screen.dart';
 
 class PassengerRequestConfirmationScreen extends StatelessWidget {
   final String? driverName;
@@ -300,7 +300,7 @@ class PassengerRequestConfirmationScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const DriverMyRidesScreen(),
+                      builder: (_) => const MyRidesScreen(),
                     ),
                   );
                 },

@@ -62,7 +62,9 @@ WidgetbookComponent(
 
 ## Tips
 
-- Widgetbook doesn't connect to Firebase, so screens that rely on real data will show empty states
+- Widgetbook connects to Firebase, but shows screens without logged-in user state
+- Screens that require authentication will show their "logged out" or "empty" states
 - Perfect for UI development and design reviews
 - Great for taking screenshots for documentation
 - Helps identify which screen is which when you have many similar-looking screens
+- To see full functionality with data, use the main app with authentication

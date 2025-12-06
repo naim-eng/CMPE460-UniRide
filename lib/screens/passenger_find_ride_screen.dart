@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -8,146 +7,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'passenger_ride_details_screen.dart';
 import 'widgets/bottom_nav.dart';
 import 'package:uniride_app/services/rating_service.dart';
-
-/// ------------ HELPER: FORMAT SHORT, CLEAN ADDRESS ------------
-String formatShortAddress(Map<String, dynamic> json) {
-  final address = json['address'] as Map<String, dynamic>?;
-
-  if (address != null) {
-    String? place =
-        address['road'] ??
-        address['pedestrian'] ??
-        address['footway'] ??
-        address['neighbourhood'] ??
-        address['suburb'] ??
-        address['hamlet'];
-
-    String? city =
-        address['city'] ??
-        address['town'] ??
-        address['village'] ??
-        address['municipality'] ??
-        address['county'];
-
-    String? country = address['country'];
-
-    final parts = <String>[
-      if (place != null && place.isNotEmpty) place,
-      if (city != null && city.isNotEmpty) city,
-      if (country != null && country.isNotEmpty) country,
-    ];
-
-    if (parts.isNotEmpty) {
-      return parts.join(', ');
-    }
-  }
-
-  final display = (json['display_name'] ?? '') as String;
-  if (display.isEmpty) return '';
-  final segments = display.split(',').map((e) => e.trim()).toList();
-  if (segments.length <= 3) return display;
-  return segments.sublist(0, 3).join(', ');
-}
-
-// ---------- MODEL FOR LOCATION SUGGESTIONS ----------
-class LocationSuggestion {
-  final String displayName;
-  final double lat;
-  final double lon;
-
-  LocationSuggestion({
-    required this.displayName,
-    required this.lat,
-    required this.lon,
-  });
-
-  factory LocationSuggestion.fromJson(Map<String, dynamic> json) {
-    return LocationSuggestion(
-      displayName: formatShortAddress(json),
-      lat: double.tryParse(json['lat'] ?? '0') ?? 0.0,
-      lon: double.tryParse(json['lon'] ?? '0') ?? 0.0,
-    );
-  }
-}
-
-// ---------- SERVICE FOR NOMINATIM SEARCH / REVERSE ----------
-class LocationSearchService {
-  static const _searchBaseUrl = 'https://nominatim.openstreetmap.org/search';
-  static const _reverseBaseUrl = 'https://nominatim.openstreetmap.org/reverse';
-
-  static Future<List<LocationSuggestion>> search(String query) async {
-    if (query.trim().length < 3) return [];
-
-    final normalized = query.toLowerCase().trim();
-    final List<LocationSuggestion> manual = [];
-
-    if (normalized.contains('aubh') ||
-        normalized.contains('american university')) {
-      manual.add(
-        LocationSuggestion(
-          displayName: 'American University of Bahrain, Riffa, Bahrain',
-          lat: 26.10,
-          lon: 50.56,
-        ),
-      );
-    }
-
-    const viewbox = '49.8,26.8,50.8,25.5';
-
-    final uri = Uri.parse(
-      '$_searchBaseUrl'
-      '?q=${Uri.encodeQueryComponent(query)}'
-      '&format=json'
-      '&addressdetails=1'
-      '&limit=5'
-      '&accept-language=en'
-      '&countrycodes=bh,sa'
-      '&viewbox=$viewbox'
-      '&bounded=1',
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {'User-Agent': 'uniride_app/1.0 (student project)'},
-    );
-
-    if (response.statusCode != 200) return manual;
-
-    final List data = json.decode(response.body);
-    final mapped = data.map((e) => LocationSuggestion.fromJson(e)).toList();
-
-    return [...manual, ...mapped];
-  }
-
-  static Future<String?> reverse(LatLng point) async {
-    final uri = Uri.parse(
-      '$_reverseBaseUrl'
-      '?lat=${point.latitude}'
-      '&lon=${point.longitude}'
-      '&format=json'
-      '&addressdetails=1'
-      '&accept-language=en',
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {'User-Agent': 'uniride_app/1.0 (student project)'},
-    );
-
-    if (response.statusCode != 200) return null;
-
-    final data = json.decode(response.body);
-    final short = formatShortAddress(data);
-    if (short.isNotEmpty) return short;
-    return data['display_name'];
-  }
-}
+import 'package:uniride_app/services/secure_places_service.dart';
 
 // ------------------------------------------------------
 
@@ -179,6 +44,7 @@ class _PassengerFindRideScreenState extends State<PassengerFindRideScreen> {
   bool _isSearchingLocations = false;
 
   LatLng? _pickupLocation;
+  LatLng? _currentUserLocation; // For automatic filtering
   static const double _searchRadiusKm = 10.0;
 
   static const Color kScreenTeal = Color(0xFFE0F9FB);
@@ -195,12 +61,29 @@ class _PassengerFindRideScreenState extends State<PassengerFindRideScreen> {
       }
     }
 
+    // Get user's current location for automatic filtering
+    _getUserLocation();
+
     _pickupFocusNode.addListener(() {
       if (_pickupFocusNode.hasFocus &&
           _pickupController.text.trim().length >= 3) {
         _onPickupChanged(_pickupController.text);
       }
     });
+  }
+
+  // Get user's current location
+  Future<void> _getUserLocation() async {
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      setState(() {
+        _currentUserLocation = LatLng(position.latitude, position.longitude);
+      });
+    } catch (e) {
+      print('Error getting user location: $e');
+    }
   }
 
   @override
@@ -257,7 +140,7 @@ class _PassengerFindRideScreenState extends State<PassengerFindRideScreen> {
 
       setState(() => _isSearchingLocations = true);
 
-      final results = await LocationSearchService.search(value);
+      final results = await SecurePlacesService.search(value);
 
       if (!mounted) return;
 
@@ -346,7 +229,7 @@ class _PassengerFindRideScreenState extends State<PassengerFindRideScreen> {
                           ? null
                           : () async {
                               final address =
-                                  await LocationSearchService.reverse(
+                                  await SecurePlacesService.reverse(
                                     selectedPoint!,
                                   );
 
@@ -625,6 +508,8 @@ class _PassengerFindRideScreenState extends State<PassengerFindRideScreen> {
                   ),
                 ),
               _buildLocationSuggestions(),
+              
+              const SizedBox(height: 16),
 
               GestureDetector(
                 onTap: _openCalendar,
@@ -722,18 +607,55 @@ class _PassengerFindRideScreenState extends State<PassengerFindRideScreen> {
                   }
 
                   final allRides = snapshot.data!.docs;
-                  final filtered = _pickupLocation != null
-                      ? allRides.where((doc) {
-                          final d = doc.data() as Map<String, dynamic>;
-                          final lat = d['fromLat'];
-                          final lng = d['fromLng'];
-                          if (lat == null || lng == null) return true;
-                          return _isWithinRadius(
-                            _pickupLocation!,
-                            LatLng(lat, lng),
-                          );
-                        }).toList()
-                      : allRides;
+                  
+                  // Determine if user has entered search parameters
+                  final hasPickupParam = _pickupLocation != null && _pickupController.text.trim().isNotEmpty;
+                  final hasDateParam = _dateController.text.trim().isNotEmpty;
+                  final hasTimeParam = startTime != null || endTime != null;
+                  final hasAnySearchParam = hasPickupParam || hasDateParam || hasTimeParam;
+                  
+                  // Get today's date string for filtering
+                  final now = DateTime.now();
+                  final todayString = "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+                  
+                  List<DocumentSnapshot> filtered;
+                  
+                  if (!hasAnySearchParam && _currentUserLocation != null) {
+                    // No search params: show rides within 10km starting today
+                    filtered = allRides.where((doc) {
+                      final d = doc.data() as Map<String, dynamic>;
+                      final lat = d['fromLat'];
+                      final lng = d['fromLng'];
+                      final rideDate = d['date'] ?? '';
+                      
+                      // Filter by distance (10km from user's current location)
+                      if (lat == null || lng == null) return false;
+                      final isNearby = _isWithinRadius(
+                        _currentUserLocation!,
+                        LatLng(lat, lng),
+                      );
+                      
+                      // Filter by date (same day)
+                      final isSameDay = rideDate == todayString;
+                      
+                      return isNearby && isSameDay;
+                    }).toList();
+                  } else if (hasPickupParam) {
+                    // User has entered pickup location: filter by that location
+                    filtered = allRides.where((doc) {
+                      final d = doc.data() as Map<String, dynamic>;
+                      final lat = d['fromLat'];
+                      final lng = d['fromLng'];
+                      if (lat == null || lng == null) return true;
+                      return _isWithinRadius(
+                        _pickupLocation!,
+                        LatLng(lat, lng),
+                      );
+                    }).toList();
+                  } else {
+                    // Has date/time params but no location: show all rides
+                    filtered = allRides;
+                  }
 
                   return Column(
                     children: filtered.map((doc) {

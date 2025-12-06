@@ -4,14 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'rating_screen.dart';
 import 'package:uniride_app/services/rating_service.dart';
 
-class DriverRideRequestsScreen extends StatefulWidget {
-  const DriverRideRequestsScreen({super.key});
+class IncomingRideRequestsScreen extends StatefulWidget {
+  const IncomingRideRequestsScreen({super.key});
 
   @override
-  State<DriverRideRequestsScreen> createState() => _DriverRideRequestsScreenState();
+  State<IncomingRideRequestsScreen> createState() => _IncomingRideRequestsScreenState();
 }
 
-class _DriverRideRequestsScreenState extends State<DriverRideRequestsScreen> {
+class _IncomingRideRequestsScreenState extends State<IncomingRideRequestsScreen> {
   static const Color kScreenTeal = Color(0xFFE0F9FB);
   static const Color kUniRideTeal1 = Color(0xFF00BCC9);
   static const Color kUniRideTeal2 = Color(0xFF009DAE);
@@ -100,7 +100,7 @@ class _DriverRideRequestsScreenState extends State<DriverRideRequestsScreen> {
         ),
         centerTitle: true,
         title: const Text(
-          "My Requests",
+          "Incoming Ride Requests",
           style: TextStyle(
             color: kUniRideTeal2,
             fontWeight: FontWeight.bold,
@@ -119,6 +119,7 @@ class _DriverRideRequestsScreenState extends State<DriverRideRequestsScreen> {
               stream: FirebaseFirestore.instance
                   .collection('ride_requests')
                   .where('driverId', isEqualTo: user.uid)
+                  .where('status', isEqualTo: 'pending')
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
